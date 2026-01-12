@@ -1,0 +1,88 @@
+<snippet>
+	<content><![CDATA[
+template<int sigma>
+struct aho_corasic_automaton_fixed{
+	vector<int> len{0};
+	vector<int> link{-1};
+	vector<int> exit_link{-1};
+	vector<int> is_terminal{false};
+	vector<pair<int, int>> pv{{-1, {}}};
+	vector<array<int, sigma>> next{{}};
+	int new_state(){
+		len.push_back(0);
+		link.push_back(-1);
+		exit_link.push_back(-1);
+		is_terminal.push_back(false);
+		pv.push_back({-1, {}});
+		next.push_back({});
+		return (int)len.size() - 1;
+	}
+	aho_corasic_automaton_fixed(){ }
+	aho_corasic_automaton_fixed(const vector<string> &s){
+		vector<vector<int>> patterns((int)s.size());
+		for(auto i = 0; i < (int)s.size(); ++ i){
+			patterns[i].resize((int)s[i].size());
+			for(auto j = 0; j < (int)s[i].size(); ++ j) patterns[i][j] = tolower(s[i][j]) - 'a';
+		}
+		*this = aho_corasic_automaton_fixed(patterns);
+	}
+	// O(sigma * (sum of length)) where sigma is the size of alphabets
+	// All alphabets must be within [0, sigma)
+	aho_corasic_automaton_fixed(const vector<vector<int>> &patterns){
+		for(auto s: patterns){
+			int u = 0;
+			for(auto c: s){
+				assert(0 <= c && c < sigma);
+				if(!next[u][c]){
+					next[u][c] = new_state();
+					len[next[u][c]] = len[u] + 1;
+					pv[next[u][c]] = {u, c};
+				}
+				u = next[u][c];
+			}
+			is_terminal[u] = true;
+		}
+		deque<int> dq{0};
+		while(!dq.empty()){
+			int u = dq.front(); dq.pop_front();
+			for(auto c = 0; c < sigma; ++ c){
+				int v = next[u][c];
+				if(!v) continue;
+				link[v] = ~link[u] ? next[link[u]][c] : 0;
+				exit_link[v] = is_terminal[link[v]] ? link[v] : exit_link[link[v]];
+				dq.push_back(v); 
+			}
+			if(u) for(auto c = 0; c < sigma; ++ c) if(!next[u][c]) next[u][c] = next[link[u]][c];
+		}
+	}
+	int next_state(int u, char c) const{
+		return next[u][tolower(c) - 'a'];
+	}
+	int next_state(int u, int c) const{
+		return next[u][c];
+	}
+	int next_state(int u, const string &s) const{
+		for(auto c: s) u = next[u][tolower(c) - 'a'];
+		return u;
+	}
+	int next_state(int u, const vector<int> &s) const{
+		for(auto c: s) u = next[u][c];
+		return u;
+	}
+	int size() const{ // # of states
+		return (int)len.size();
+	}
+	vector<int> restore(int u) const{
+		assert(0 <= u && u < (int)next.size());
+		vector<int> res;
+		for(; u; u = pv[u].first) res.push_back(pv[u].second);
+		reverse(res.begin(), res.end());
+		return res;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>aho_corasic_automaton_fixed</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

@@ -1,0 +1,68 @@
+<snippet>
+	<content><![CDATA[
+template<class T>
+struct flow_network{
+	int n;
+	vector<vector<int>> adj;
+	struct E{
+		int from, to;
+		T capacity, flow;
+		bool saturated() const{
+			static constexpr T eps = 1e-9;
+			return capacity - flow <= eps;
+		}
+	};
+	vector<E> edge;
+	flow_network(int n): n(n), adj(n){ }
+	void clear_flow(){
+		for(auto &e: edge) e.flow = 0;
+	}
+	int link(int from, int to, T cap){
+		assert(0 <= min(from, to) && max(from, to) < n && cap >= 0);
+		int ind = (int)edge.size();
+		adj[from].push_back(ind);
+		edge.push_back({from, to, cap, 0});
+		adj[to].push_back(ind + 1);
+		edge.push_back({to, from, cap, 0});
+		return ind;
+	}
+	int orient(int from, int to, T cap){
+		assert(0 <= min(from, to) && max(from, to) < n && cap >= 0);
+		int ind = (int)edge.size();
+		adj[from].push_back(ind);
+		edge.push_back({from, to, cap, 0});
+		adj[to].push_back(ind + 1);
+		edge.push_back({to, from, 0, 0});
+		return ind;
+	}
+	void adjust_undirected_edge_capacity(int id, T cap){
+		assert(0 <= id && id < (int)edge.size() && id % 2 == 0 && cap >= 0);
+		assert(edge[id].flow <= cap);
+		assert(edge[id ^ 1].flow <= cap);
+		edge[id].capacity = cap;
+		edge[id ^ 1].capacity = cap;
+	}
+	void adjust_directed_edge_capacity(int id, T cap){
+		assert(0 <= id && id < (int)edge.size() && id % 2 == 0 && cap >= 0);
+		assert(edge[id].flow <= cap);
+		edge[id].capacity = cap;
+	}
+	void add_flow(int i, T f){
+		edge[i].flow += f;
+		edge[i ^ 1].flow -= f;
+	}
+	friend ostream &operator<<(ostream &out, const flow_network &F){
+		out << "\n";
+		for(auto i = 0; i < (int)F.edge.size(); i += 2){
+			auto &e = F.edge[i];
+			out << "{" << e.from << " -> " << e.to << ", " << e.flow << "/" << e.capacity << "}\n";
+		}
+		return out;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>flow_network</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

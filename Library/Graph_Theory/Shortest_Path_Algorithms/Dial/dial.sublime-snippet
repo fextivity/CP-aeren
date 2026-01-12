@@ -1,0 +1,88 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+struct dial{
+	int n, base_dist;
+	vector<int> dist;
+	vector<int> pv;
+	vector<int> pe;
+	vector<int> order;
+	vector<int> pos;
+	vector<int> root_of;
+	vector<int> root;
+	vector<int> depth;
+	vector<int> was;
+	dial(int base_dist = 0): base_dist(base_dist){ }
+	void init(int n){
+		this->n = n;
+		dist.assign(n, base_dist);
+		pv.assign(n, -1);
+		pe.assign(n, -1);
+		order.clear();
+		pos.assign(n, -1);
+		root_of.assign(n, -1);
+		root.clear();
+		depth.assign(n, -1);
+		was.assign(n, -2);
+		attempt = -1;
+	}
+	int attempt;
+	// Edge weights must be integers in range [0, C)
+	// O(|E| + min(|V| * C, (sum of edge weights))) where
+	// V is the set of vertices reachable from src and
+	// E is the set of edges reachable from src
+	template<class Graph>
+	void _run(const Graph &g, int C, const vector<int> &src){
+		int it = 0;
+		vector<vector<array<int, 2>>> dq(C);
+		vector<int> beg(C);
+		for(auto u: src){
+			if(was[u] == attempt) continue;
+			was[u] = attempt;
+			dq[it].push_back({dist[u] = base_dist, u});
+			depth[u] = 0;
+			root_of[u] = u;
+			root.push_back(u);
+			pv[u] = -1;
+			pe[u] = -1;
+		}
+		while(true){
+			for(auto th = C; th && beg[it] == (int)dq[it].size(); -- th) it = (it + 1) % C;
+			if(beg[it] == (int)dq[it].size()) break;
+			auto [d, u] = dq[it][beg[it] ++];
+			if(d != dist[u]) continue;
+			for(auto id: g.adj[u]){
+				if(g.ignore && g.ignore(id)) continue;
+				auto &e = g.edge[id];
+				assert(0 <= e.cost && e.cost < C);
+				int v = g(u, id);
+				if(was[v] != attempt || d + e.cost < dist[v]){
+					was[v] = attempt;
+					depth[v] = depth[u] + 1;
+					pv[v] = u;
+					pe[v] = id;
+					root_of[v] = root_of[u];
+					dq[(d + e.cost) % C].push_back({dist[v] = d + e.cost, v});
+				}
+			}
+		}
+	}
+	template<class Graph>
+	void run(const Graph &g, int C, const vector<int> &src){
+		assert(g.n <= n);
+		for(auto u: src) assert(0 <= u && u < g.n);
+		root.clear(), order.clear();
+		++ attempt;
+		_run(g, C, src);
+	}
+	// Check if u is visited during the last dial-like call.
+	bool visited(int u) const{
+		return was[u] == attempt;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>dial</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

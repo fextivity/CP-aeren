@@ -1,0 +1,150 @@
+<snippet>
+	<content><![CDATA[
+template<bool ALLOW_NON_PREFIX_QUERY, class T, class F, class I>
+struct fenwick_tree{
+#ifdef LOCAL
+	#define ASSERT(x) assert(x)
+#else
+	#define ASSERT(x) 42
+#endif
+	int n;
+	vector<T> data;
+	F TT;
+	T T_id;
+	I Tinv;
+	fenwick_tree(F TT, T T_id, I Tinv): TT(TT), T_id(T_id), Tinv(Tinv){ }
+	fenwick_tree &operator=(const fenwick_tree &fw){
+		n = fw.n;
+		data = fw.data;
+	}
+	// O(n)
+	void build(int n){
+		assert(n >= 0);
+		this->n = n;
+		data.assign(n, T_id);
+	}
+	// O(n)
+	void build(int n, T x){
+		assert(n >= 0);
+		this->n = n;
+		data.assign(n, x);
+		for(auto i = 1; i <= n; ++ i) if(i + (i & -i) <= n) data[i + (i & -i) - 1] = TT(data[i + (i & -i) - 1], data[i - 1]);
+	}
+	// O(n)
+	void build(int n, auto f){
+		vector<T> data(n);
+		for(auto i = 0; i < n; ++ i) data[i] = f(i);
+		build(data);
+	}
+	// O(n)
+	template<class U>
+	void build(const vector<U> &a){
+		n = (int)a.size();
+		data.resize(n);
+		copy(a.begin(), a.end(), data.begin());
+		for(auto i = 1; i <= n; ++ i) if(i + (i & -i) <= n) data[i + (i & -i) - 1] = TT(data[i + (i & -i) - 1], data[i - 1]);
+	}
+	// O(log(n))
+	void update(int p, T x){
+		assert(0 <= p && p < n);
+		for(++ p; p <= n; p += p & -p) data[p - 1] = TT(data[p - 1], x);
+	}
+	// O(log(n))
+	void set(int p, T x){
+		update(p, TT(x, Tinv(query(p))));
+	}
+	// O(log(n))
+	T prefix(int r) const{
+		assert(0 <= r && r <= n);
+		T s = T_id;
+		for(; r > 0; r -= r & -r) s = TT(s, data[r - 1]);
+		return s;
+	}
+	// O(log(n))
+	T query(int l, int r) const{
+		static_assert(ALLOW_NON_PREFIX_QUERY);
+		assert(0 <= l && l <= r && r <= n);
+		if(l == r) return T_id;
+		T sum_minus = T_id, sum_plus = T_id;
+		for(; l < r; r -= r & -r) sum_plus = TT(sum_plus, data[r - 1]);
+		for(; r < l; l -= l & -l) sum_minus = TT(sum_minus, data[l - 1]);
+		return TT(sum_plus, Tinv(sum_minus));
+	}
+	// O(log(n))
+	T query(int p) const{
+		static_assert(ALLOW_NON_PREFIX_QUERY);
+		return query(p, p + 1);
+	}
+	// O(log(n))
+	T query_all() const{
+		return prefix(n);
+	}
+	// pred(sum[0, r)) is T, T, ..., T, F, F, ..., F, returns max r with T
+	// O(log(n))
+	int max_pref(auto pred) const{
+		assert(pred(T_id));
+		int p = 0;
+		T sum = T_id;
+		for(auto i = __lg(n + 1); i >= 0; -- i) if(p + (1 << i) <= n && pred(TT(sum, data[p + (1 << i) - 1]))){
+			sum = TT(sum, data[p + (1 << i) - 1]);
+			p += 1 << i;
+		}
+		return p;
+	}
+	// Assuming each index x stores a non-negative integer indicating how many of x exists,
+	// find the k-th smallest element, or return n if no such element
+	// O(log(n))
+	int find_by_order(long long k) const{
+		ASSERT(0 <= k);
+		return max_pref([&](auto sum){ return sum <= k; });
+	}
+	// Assuming each index x stores a non-negative integer indicating how many of x exists,
+	// find the k-th largest element, or return -1 if no such element
+	// O(log(n))
+	int find_by_reverse_order(long long k) const{
+		ASSERT(0 <= k);
+		auto tot = query_all();
+		if(k >= tot) return -1;
+		return max_pref([&](auto sum){ return sum <= tot - 1 - k; });
+	}
+	template<class output_stream>
+	friend output_stream &operator<<(output_stream &out, const fenwick_tree &fw){
+		out << "{";
+		for(auto i = 0; i < fw.n; ++ i){
+			out << fw.query(i);
+			if(i != fw.n - 1) out << ", ";
+		}
+		return out << '}';
+	}
+#undef ASSERT
+};
+
+template<class T, class F, class I>
+auto make_fenwick_tree(F TT, T T_id, I Tinv){
+	return fenwick_tree<true, T, F, I>(TT, T_id, Tinv);
+}
+template<class T>
+auto make_fenwick_tree_sum(T T_id = T{0}){
+	return fenwick_tree<true, T, plus<>, negate<>>(plus{}, T_id, negate{});
+}
+template<class T>
+auto make_fenwick_tree_product(){
+	auto inverse = [](const T &x){ return 1 / x; };
+	return fenwick_tree<true, T, multiplies<>, decltype(inverse)>(multiplies{}, T{1}, inverse);
+}
+template<class T>
+auto make_fenwick_tree_min(){
+	auto TT = [&](const T &x, const T &y)->T{ return min(x, y); };
+	return fenwick_tree<false, T, decltype(TT), negate<>>(TT, numeric_limits<T>::max(), negate{});
+}
+template<class T>
+auto make_fenwick_tree_max(){
+	auto TT = [&](const T &x, const T &y)->T{ return max(x, y); };
+	return fenwick_tree<false, T, decltype(TT), negate<>>(TT, numeric_limits<T>::max(), negate{});
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>fenwick_tree</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

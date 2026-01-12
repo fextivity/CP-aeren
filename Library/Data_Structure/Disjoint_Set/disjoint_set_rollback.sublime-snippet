@@ -1,0 +1,111 @@
+<snippet>
+	<content><![CDATA[
+struct disjoint_set_rollback{
+	int n, _group_count;
+	vector<int> p;
+	vector<pair<int, int>> recover;
+	disjoint_set_rollback(int n): n(n), _group_count(n), p(n, -1){ assert(n >= 0); }
+	// O(log(n))
+	int root(int u){
+		return p[u] < 0 ? u : root(p[u]);
+	}
+	// O(log(n))
+	bool share(int a, int b){
+		return root(a) == root(b);
+	}
+	// O(log(n))
+	int size(int u){
+		return -p[root(u)];
+	}
+	// O(log(n))
+	bool merge(int u, int v){
+		u = root(u), v = root(v);
+		if(u == v) return false;
+		-- _group_count;
+		if(p[u] > p[v]) swap(u, v);
+		recover.emplace_back(v, p[v]);
+		p[u] += p[v], p[v] = u;
+		return true;
+	}
+	// O(log(n))
+	bool merge(int u, int v, auto act){
+		u = root(u), v = root(v);
+		if(u == v) return false;
+		-- _group_count;
+		bool swapped = false;
+		if(p[u] > p[v]) swap(u, v), swapped = true;
+		act(u, v, swapped);
+		recover.emplace_back(v, p[v]);
+		p[u] += p[v], p[v] = u;
+		return true;
+	}
+	// O(1)
+	int group_count() const{
+		return _group_count;
+	}
+	// Log the current state into recover
+	void refresh(int signal){
+		recover.push_back({-1, signal});
+	}
+	// O(1)
+	int state(){
+		return (int)recover.size();
+	}
+	// O(size(recover) - s)
+	void reverse_to(int s){
+		assert(s <= (int)recover.size());
+		while((int)recover.size() > s){
+			++ _group_count;
+			auto [u, su] = recover.back();
+			recover.pop_back();
+			p[p[u]] -= su, p[u] = su;
+		}
+	}
+	// O(size(recover) - s)
+	// act(-1, signal): refresh() was called with signal
+	// act(u, v): u has been split from the child v
+	void reverse_to(int s, auto act){
+		while((int)recover.size() > s){
+			auto [u, su] = recover.back();
+			recover.pop_back();
+			if(!~u) act(u, su);
+			else{
+				++ _group_count;
+				int pu = p[u];
+				p[p[u]] -= su, p[u] = su;
+				act(pu, u);
+			}
+		}
+	}
+	void clear(){
+		_group_count = n;
+		fill(p.begin(), p.end(), -1);
+		recover.clear();
+	}
+	vector<vector<int>> group_up(){
+		vector<vector<int>> g(n);
+		for(auto i = 0; i < n; ++ i) g[root(i)].push_back(i);
+		g.erase(remove_if(g.begin(), g.end(), [&](auto &s){ return s.empty(); }), g.end());
+		return g;
+	}
+	friend ostream &operator<<(ostream &out, disjoint_set_rollback dsu){
+		auto gs = dsu.group_up();
+		out << "{";
+		if(!gs.empty()) for(auto i = 0; i < (int)gs.size(); ++ i){
+			out << "{";
+			for(auto j = 0; j < (int)gs[i].size(); ++ j){
+				out << gs[i][j];
+				if(j + 1 < (int)gs[i].size()) out << ", ";
+			}
+			out << "}";
+			if(i + 1 < (int)gs.size()) out << ", ";
+		}
+		return out << "}";
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>disjoint_set_rollback</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

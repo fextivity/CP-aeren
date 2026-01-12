@@ -1,0 +1,64 @@
+<snippet>
+	<content><![CDATA[
+template<class T>
+auto _knuth_optimization(const vector<T> &base, auto cost, auto cmp){
+	int n = (int)base.size();
+#ifdef LOCAL
+	for(auto a = 0; a <= n; ++ a)
+		for(auto b = a; b <= n; ++ b)
+			for(auto c = b + 1; c <= n; ++ c)
+				for(auto d = c; d <= n; ++ d){
+					assert(!cmp(cost(a, d) + cost(b, c), cost(a, c) + cost(b, d)));
+					assert(!cmp(cost(a, d), cost(b, c)));
+				}
+#endif
+	vector dp(n, vector<T>(n + 1));
+	vector<int> opt(n), opt_next;
+	for(auto i = 0; i < n; ++ i){
+		dp[i][i + 1] = base[i];
+		opt[i] = i;
+	}
+	for(auto len = 2; len <= n; ++ len){
+		opt_next.resize(n - len + 1);
+		for(auto l = 0; l + len <= n; ++ l){
+			int r = l + len;
+			T cur_cost = cost(l, r);
+			dp[l][r] = dp[l][max(l + 1, opt[l])] + dp[max(l + 1, opt[l])][r] + cur_cost;
+			opt_next[l] = max(l + 1, opt[l]);
+			for(auto m = max(l + 1, opt[l]) + 1; m <= min(r - 1, opt[l + 1]); ++ m) if(cmp(dp[l][m] + dp[m][r] + cur_cost, dp[l][r])){
+				dp[l][r] = dp[l][m] + dp[m][r] + cur_cost;
+				opt_next[l] = m;
+			}
+		}
+		swap(opt, opt_next);
+	}
+	return dp;
+}
+// Given is the recurrence relation of form dp[i][j] = min{i < k < j} (dp[i][k] + dp[k][j] + cost(i, j))
+// where
+// 1. cost is monge: cost(a, c) + cost(b, d) <= cost(a, d) + cost(b, c) for all a<=b<c<=d, and 
+// 2. cost(a, d) >= cost(b, c) for all a<=b<c<=d
+// Return the dp table constructed from the following base values
+// dp[i][i + 1] = base[i] for 0 <= i < n
+// O(n^2)
+template<class T>
+auto knuth_optimization_min(const vector<T> &base, auto cost){
+	return _knuth_optimization(base, cost, less<>());
+}
+// Given is the recurrence relation of form dp[i][j] = max{i < k < j} (dp[i][k] + dp[k][j] + cost(i, j))
+// where
+// 1. cost is monge: cost(a, c) + cost(b, d) >= cost(a, d) + cost(b, c) for all a<=b<c<=d, and
+// 2. cost(a, d) <= cost(b, c) for all a<=b<c<=d
+// Return the dp table constructed from the following base values
+// dp[i][i + 1] = base[i] for 0 <= i < n
+// O(n^2)
+template<class T>
+auto knuth_optimization_max(const vector<T> &base, auto cost){
+	return _knuth_optimization(base, cost, greater<>());
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>knuth_optimization</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

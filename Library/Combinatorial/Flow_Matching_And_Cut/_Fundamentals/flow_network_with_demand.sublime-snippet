@@ -1,0 +1,74 @@
+<snippet>
+	<content><![CDATA[
+// Requires flow_network
+template<class T, class Flow_Solver>
+struct flow_network_with_demand{
+	flow_network_with_demand(int n): n(n), F(n + 2), D(F), demand(n){}
+	int orient(int from, int to, T d, T c){
+		assert(0 <= min(from, to) && max(from, to) < n && 0 <= d && d <= c);
+		++ m;
+		int id = F.orient(from, to, c - d);
+		demand[from] -= d;
+		demand[to] += d;
+		edge_id.push_back(id);
+		edge_demand.push_back(d);
+		return id;
+	}
+	T _setup(){
+		T req = 0;
+		for(auto u = 0; u < n; ++ u){
+			if(demand[u] > 0) F.orient(n, u, demand[u]), req += demand[u];
+			else if(demand[u] < 0) F.orient(u, n + 1, -demand[u]);
+		}
+		return req;
+	}
+	vector<T> _get_edge_flow() const{
+		vector<T> w = edge_demand;
+		for(auto i = 0; i < m; ++ i) w[i] += F.edge[edge_id[i]].flow;
+		return w;
+	}
+	// Destroys the network after getting called
+	optional<vector<T>> feasible_circulation(){
+		if(T req = _setup(); req != D.maximum_flow(n, n + 1)) return {};
+		return _get_edge_flow();
+	}
+	// Destroys the network after getting called
+	optional<pair<T, vector<T>>> feasible_flow(int s, int t){
+		assert(0 <= min(s, t) && max(s, t) < n && s != t);
+		int id = F.orient(t, s, numeric_limits<T>::max());
+		if(!feasible_circulation()) return {};
+		return pair{F.edge[id].flow, _get_edge_flow()};
+	}
+	// Destroys the network after getting called
+	optional<pair<T, vector<T>>> maximum_feasible_flow(int s, int t){
+		assert(0 <= min(s, t) && max(s, t) < n && s != t);
+		int id = F.orient(t, s, numeric_limits<T>::max());
+		if(!feasible_circulation()) return {};
+		T flow = F.edge[id].flow;
+		F.edge[id].capacity = F.edge[id].flow = F.edge[id ^ 1].flow = 0;
+		flow += D.maximum_flow(s, t);
+		return pair{flow, _get_edge_flow()};
+	}
+	// Destroys the network after getting called
+	optional<pair<T, vector<T>>> minimum_feasible_flow(int s, int t){
+		assert(0 <= min(s, t) && max(s, t) < n && s != t);
+		int id = F.orient(t, s, numeric_limits<T>::max());
+		if(!feasible_circulation()) return {};
+		T flow = F.edge[id].flow;
+		F.edge[id].capacity = F.edge[id].flow = F.edge[id ^ 1].flow = 0;
+		flow -= D.maximum_flow(t, s);
+		return pair{flow, _get_edge_flow()};
+	}
+	int n, m = 0;
+	flow_network<T> F;
+	Flow_Solver D;
+	vector<T> demand;
+	vector<int> edge_id;
+	vector<T> edge_demand;
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>flow_network_with_demand</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

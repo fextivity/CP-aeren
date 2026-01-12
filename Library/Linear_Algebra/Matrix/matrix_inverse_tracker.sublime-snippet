@@ -1,0 +1,69 @@
+<snippet>
+	<content><![CDATA[
+// Maintain the determinant, inverse determinant, and the inverse of a matrix up to addition updates of another matrix of small rank
+// M must be a matrix type
+// Assumes T is a field
+// Requires matrix, matrix_fixed, or matrix_Z2
+template<class M>
+struct matrix_inverse_tracker{
+	using T = M::ring_t;
+	int n;
+	M matrix;
+	T determinant;
+	M inverse_matrix;
+	T inverse_determinant;
+	// Assumes a is invertible
+	matrix_inverse_tracker(const M &a):
+		n(a.n),
+		matrix(a),
+		determinant(a.determinant_field()),
+		inverse_matrix(*a.inverse()),
+		inverse_determinant(T(1) / determinant){
+		assert(a.m == n);
+	}
+	// Sherman–Morrison formula and matrix determinant lemma
+	// Apply a += u * v^T if the resulting matrix is invertible
+	// O(n^2) operations on T
+	bool update(const M::domain_t &u, const M::range_t &v){
+		auto au = inverse_matrix * u;
+		T c = T(1);
+		for(auto i = 0; i < n; ++ i) c += v[i] * au[i];
+		if(c == T(0)) return false;
+		for(auto i = 0; i < n; ++ i) for(auto j = 0; j < n; ++ j) matrix[i][j] += u[i] * v[j];
+		determinant *= c;
+		inverse_determinant *= c = T(1) / c;
+		auto va = v * inverse_matrix;
+		for(auto &x: va) x *= c;
+		for(auto i = 0; i < n; ++ i) for(auto j = 0; j < n; ++ j) inverse_matrix[i][j] -= au[i] * va[j];
+		return true;
+	}
+	// Woodbury matrix identity and generalized matrix determinant lemma
+	// Assumes that C is invertible
+	// Apply a += U * C * V if the resulting matrix is invertible
+	// O(k) find_inverse() calls along with O(k * n^2 + k^3) operations on T
+	template<class M1, class M2, class M3>
+	bool update(const M1 &U, const M2 &C, const M3 &V){
+		int k = C.n;
+		assert(U.n == n && U.m == k);
+		assert(C.n == k && C.m == k);
+		assert(V.n == k && V.m == n);
+		T det_C = C.determinant_field();
+		T det_C_inv = T(1) / det_C;
+		auto au = inverse_matrix * U;
+		auto D = *C.inverse() + V * au;
+		auto invDp = D.inverse();
+		if(!invDp) return false;
+		matrix += U * C * V;
+		determinant *= D.determinant_field() * det_C;
+		inverse_determinant *= (D = *invDp).determinant_field() * det_C_inv;
+		auto va = V * inverse_matrix;
+		inverse_matrix -= au * D * va;
+		return true;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>matrix_inverse_tracker</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

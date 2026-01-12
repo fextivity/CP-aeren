@@ -1,0 +1,42 @@
+<snippet>
+	<content><![CDATA[
+// Find floor(n^1/k) for non-negative integers n, k
+struct floored_root{
+	vector<unsigned long long> pow[65];
+	floored_root(){
+		for(auto t = 2u; t < 1 << 16; ++ t){
+			unsigned long long s = t * t;
+			s = s * s;
+			for(auto k = 4; ; ++ k){
+				pow[k].push_back(s);
+				if(__builtin_umulll_overflow(s, t, &s)) break;
+			}
+		}
+	}
+	unsigned long long sqrt(unsigned long long n) const{
+		unsigned long long x = std::sqrt(n);
+		return x * x > n ? x - 1 : x;
+	}
+	unsigned long long cbrt(unsigned long long n) const{
+		unsigned long long x = 0, y = 0;
+		for(auto s = 63; s >= 0; s -= 3){
+			x <<= 1;
+			y = 3 * x * (x + 1) + 1;
+			if(y <= (n >> s)) n -= y << s, ++ x;
+		}
+		return x;
+	}
+	unsigned long long operator()(unsigned long long n, int k) const{
+		assert(1 <= k && k <= 64);
+		if(k == 1 || n == 0) return n;
+		if(k == 2) return sqrt(n);
+		if(k == 3) return cbrt(n);
+		return upper_bound(pow[k].begin(), pow[k].end(), n) - pow[k].begin() + 1;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>floored_root</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

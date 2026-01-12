@@ -1,0 +1,87 @@
+<snippet>
+	<content><![CDATA[
+// T must be able to hold up to max(abs(x), abs(y), abs(r))^2
+// Requires point
+template<class T>
+struct circle{
+	point<T> center;
+	T radius;
+	circle(): center{}, radius{}{}
+	template<class U, class V, class W>
+	circle(U x, V y, W r): center(x, y), radius(r){ }
+	template<class U>
+	circle(const circle<U> &c): center(c.center), radius(c.radius){ }
+	friend istream &operator>>(istream &in, circle &c){
+		return in >> c.center >> c.radius;
+	}
+	bool operator==(const circle &c) const{
+		return center == c.center && radius == c.radius;
+	}
+	bool operator!=(const circle &c) const{
+		return center != c.center || radius != c.radius;
+	}
+	template<class U>
+	U square(U x) const{
+		return x * x;
+	}
+	bool contains(const point<T> &p = {}) const{
+		return squared_distance(center, p) <= square(radius);
+	}
+	bool strictly_contains(const point<T> &p = {}) const{
+		return squared_distance(center, p) < square(radius);
+	}
+	bool contains(const circle &c) const{
+		return c.radius <= radius && squared_distance(center, c.center) <= square(radius - c.radius);
+	}
+	bool strictly_contains(const circle &c) const{
+		return c.radius < radius && squared_distance(center, c.center) < square(radius - c.radius);
+	}
+	bool intersect(const circle &c) const{
+		auto d = squared_distance(center, c.center);
+		return square(radius - c.radius) <= d && d <= square(radius + c.radius);
+	}
+	bool intersect_at_one_point(const circle &c) const{
+		auto d = squared_distance(center, c.center);
+		return *this != c && (square(radius - c.radius) == d || d == square(radius + c.radius));
+	}
+	bool intersect_at_two_points(const circle &c) const{
+		auto d = squared_distance(center, c.center);
+		return square(radius - c.radius) < d && d < square(radius + c.radius);
+	}
+	// In case of returning two points, center->list forms a positive orientation
+	vector<point<double>> tangent_points(const point<T> &p = {}) const{
+		assert(p != center || abs(radius) > T(1e-9));
+		if(abs(radius) <= T(1e-9)) return {center};
+		auto d = squared_distance(center, p);
+		if(d < radius * radius) return {};
+		if(d == radius * radius) return {p};
+		auto l = radius * radius / sqrt(d), r = sqrt(d) - l;
+		auto mid = (r * point<double>(center) + l * point<double>(p)) / (l + r);
+		auto h = sqrt(radius * radius - l * l) * (mid - center).perp().unit();
+		return {mid - h, mid + h};
+	}
+	// In case of returning two points, center->list forms a positive orientation
+	vector<point<long double>> tangent_pointsl(const point<T> &p = {}) const{
+		assert(p != center || abs(radius) > T(1e-9));
+		if(abs(radius) <= T(1e-9)) return {center};
+		auto d = squared_distance(center, p);
+		if(d < radius * radius) return {};
+		if(d == radius * radius) return {p};
+		auto l = radius * radius / sqrtl(d), r = sqrtl(d) - l;
+		auto mid = (r * point<long double>(center) + l * point<long double>(p)) / (l + r);
+		auto h = sqrtl(radius * radius - l * l) * (mid - center).perp().unitl();
+		return {mid - h, mid + h};
+	}
+};
+
+using circleint = circle<int>;
+using circlell = circle<long long>;
+using circlelll = circle<__int128_t>;
+using circled = circle<double>;
+using circleld = circle<long double>;
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>circle</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

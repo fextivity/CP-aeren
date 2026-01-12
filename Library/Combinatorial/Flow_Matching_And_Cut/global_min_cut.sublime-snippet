@@ -1,0 +1,36 @@
+<snippet>
+	<content><![CDATA[
+// O(V^3)
+template<class T>
+pair<T, vector<int>> global_min_cut(vector<vector<T>> adjm){
+	int n = (int)adjm.size();
+	vector<int> used(n);
+	vector<int> cut, best_cut;
+	T best_weight = -1;
+	for(auto phase = n - 1; phase >= 0; -- phase){
+		vector<T> w = adjm[0];
+		vector<int> added = used;
+		int prev, k = 0;
+		for(auto i = 0; i < phase; ++ i){
+			prev = k, k = -1;
+			for(auto j = 1; j < n; ++ j) if(!added[j] && (k == -1 || w[j] > w[k])) k = j;
+			if(i == phase - 1){
+				for(auto j = 0; j < n; ++ j) adjm[prev][j] += adjm[k][j];
+				for(auto j = 0; j < n; ++ j) adjm[j][prev] = adjm[prev][j];
+				used[k] = true, cut.push_back(k);
+				if(best_weight == -1 || w[k] < best_weight) best_cut = cut, best_weight = w[k];
+			}
+			else{
+				for(auto j = 0; j < n; ++ j) w[j] += adjm[k][j];
+				added[k] = true;
+			}
+		}
+	}
+	return {best_weight, best_cut};
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>global_min_cut</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

@@ -1,0 +1,156 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+template<bool VALS_IN_EDGES, class T, class F, class I>
+struct forest_path_query_solver_commutative_group{
+#ifdef LOCAL
+	#define ASSERT(x) assert(x)
+#else
+	#define ASSERT(x) 42
+#endif
+	int n;
+	vector<int> order;
+	vector<int> pos;
+	vector<int> end;
+	vector<int> root_of;
+	vector<int> was;
+	vector<T> data;
+	F TT;
+	T T_id;
+	I Tinv;
+	forest_path_query_solver_commutative_group(F TT, T T_id, I Tinv): TT(TT), T_id(T_id), Tinv(Tinv){ }
+	void _update(int p, T x){
+		ASSERT(0 <= p && p < 2 * n);
+		for(++ p; p <= 2 * n; p += p & -p) data[p - 1] = TT(data[p - 1], x);
+	}
+	T _prefix(int r) const{
+		ASSERT(0 <= r && r <= 2 * n);
+		T s = T_id;
+		for(; r > 0; r -= r & -r) s = TT(s, data[r - 1]);
+		return s;
+	}
+	T _query(int l, int r) const{
+		ASSERT(0 <= l && l <= r && r <= 2 * n);
+		if(l == r) return T_id;
+		T sum_minus = T_id, sum_plus = T_id;
+		for(; l < r; r -= r & -r) sum_plus = TT(sum_plus, data[r - 1]);
+		for(; r < l; l -= l & -l) sum_minus = TT(sum_minus, data[l - 1]);
+		return TT(sum_plus, Tinv(sum_minus));
+	}
+	void init(int n){
+		this->n = n;
+		order.clear();
+		pos.assign(n, -1);
+		end.assign(n, -1);
+		root_of.assign(n, -1);
+		was.assign(n, -2);
+		attempt = -1;
+		data.assign(n << 1, T_id);
+	}
+	int attempt;
+	template<class U>
+	void build(const graph<U> &g, const vector<int> &src, const vector<T> &value){
+		ASSERT(g.n <= n);
+		ASSERT((int)value.size() == g.n);
+		++ attempt;
+		int it = 0;
+		order.clear();
+		auto dfs = [&](auto self, int u, int pe)->void{
+			ASSERT(was[u] != attempt);
+			was[u] = attempt;
+			pos[u] = it ++;
+			order.push_back(u);
+			for(auto id: g.adj[u]){
+				if(pe == id || g.ignore && g.ignore(id)) continue;
+				int v = g(u, id);
+				root_of[v] = root_of[u];
+				self(self, v, id);
+			}
+			end[u] = it ++;
+		};
+		for(auto r: src){
+			ASSERT(0 <= r && r < g.n);
+			if(was[r] == attempt) continue;
+			root_of[r] = r;
+			dfs(dfs, r, -1);
+		}
+		fill(data.begin(), data.begin() + it, T_id);
+		for(auto u: order){
+			data[pos[u]] = value[u];
+			data[end[u]] = Tinv(value[u]);
+		}
+		for(auto i = 1; i <= it; ++ i) if(i + (i & -i) <= it) data[i + (i & -i) - 1] = TT(data[i + (i & -i) - 1], data[i - 1]);
+	}
+	template<class U>
+	void build(const graph<U> &g, const vector<int> &src){
+		build<U>(g, src, vector<T>(g.n, T_id));
+	}
+	template<class U>
+	void build_all(const graph<U> &g, const vector<T> &value){
+		ASSERT(g.n <= n);
+		ASSERT((int)value.size() == g.n);
+		vector<int> src(g.n);
+		iota(src.begin(), src.end(), 0);
+		build<U>(g, src, value);
+	}
+	template<class U>
+	void build_all(const graph<U> &g){
+		build_all<U>(g, vector<T>(g.n, T_id));
+	}
+	// Check if u is visited during the last dfs call
+	bool visited(int u) const{
+		ASSERT(0 <= u && u < n);
+		return was[u] == attempt;
+	}
+	// Check if u is an ancestor of v in some spanning tree.
+	bool ancestor_of(int u, int v) const{
+		ASSERT(visited(u) && visited(v));
+		return root_of[u] == root_of[v] && pos[u] <= pos[v] && end[v] <= end[u];
+	}
+	// Update value of node u / parent edge of u by x
+	void update(int u, T x){
+		ASSERT(visited(u));
+		ASSERT(!VALS_IN_EDGES || root_of[u] != u);
+		_update(pos[u], x), _update(end[u], Tinv(x));
+	}
+	// Get value of node u / parent edge of u
+	T query(int u) const{
+		ASSERT(visited(u));
+		ASSERT(!VALS_IN_EDGES || root_of[u] != u);
+		return _query(pos[u], pos[u] + 1);
+	}
+	// Return the sum of values in the u-root path
+	T query_to_root(int u) const{
+		ASSERT(visited(u));
+		return _prefix(pos[u] + 1);
+	}
+	// Return the sum of values in the u-v path
+	// Either u must be an ancestor of v, or v must be an anestor of u
+	T query(int u, int v) const{
+		if(ancestor_of(v, u)) swap(u, v);
+		ASSERT(ancestor_of(u, v));
+		return _query(pos[u] + VALS_IN_EDGES, pos[v] + 1);
+	}
+	// Return the sum of values in the u-v path
+	// Assume that lca is the lca of u and v
+	T query(int u, int v, int lca) const{
+		ASSERT(ancestor_of(lca, u) && ancestor_of(lca, v));
+		return TT(_query(pos[lca] + 1, pos[u] + 1), _query(pos[lca] + VALS_IN_EDGES, pos[v] + 1));
+	}
+#undef ASSERT
+};
+
+template<bool VALS_IN_EDGES, class T, class F, class I>
+auto make_forest_path_query_solver_commutative_group(F TT, T T_id, I Tinv){
+	return forest_path_query_solver_commutative_group<VALS_IN_EDGES, T, F, I>(TT, T_id, Tinv);
+}
+template<bool VALS_IN_EDGES, class T>
+auto make_forest_path_query_solver_sum(){
+	return forest_path_query_solver_commutative_group<VALS_IN_EDGES, T, plus<>, negate<>>(plus{}, T{0}, negate{});
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>forest_path_query_solver_commutative_group</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

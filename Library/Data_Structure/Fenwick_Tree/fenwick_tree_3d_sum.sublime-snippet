@@ -1,0 +1,58 @@
+<snippet>
+	<content><![CDATA[
+template<class T>
+struct fenwick_tree_3d_sum{
+	int n, m, l;
+	vector<vector<vector<T>>> data;
+	// O(n * m * l)
+	fenwick_tree_3d_sum(const vector<vector<vector<T>>> &a): n((int)a.size()), m((int)a[0].size()), l((int)a[0][0].size()), data(a){
+		for(auto i = 1; i <= n; ++ i) if(i + (i & -i) <= n) for(auto j = 1; j <= m; ++ j) for(auto k = 1; k <= l; ++ k) data[i + (i & -i) - 1][j - 1][k - 1] += data[i - 1][j - 1][k - 1];
+		for(auto i = 1; i <= n; ++ i) for(auto j = 1; j <= m; ++ j) if(j + (j & -j) <= m) for(auto k = 1; k <= l; ++ k) data[i - 1][j + (j & -j) - 1][k - 1] += data[i - 1][j - 1][k - 1];
+		for(auto i = 1; i <= n; ++ i) for(auto j = 1; j <= m; ++ j) for(auto k = 1; k <= l; ++ k) if(k + (k & -k) <= l) data[i - 1][j - 1][k + (k & -k) - 1] += data[i - 1][j - 1][k - 1];
+	}
+	fenwick_tree_3d_sum(int n, int m, int l): n(n), m(m), l(l), data(n, vector<vector<T>>(m, vector<T>(l))){ }
+	// a[p][q][r] += x
+	// O(log(n) * log(m) * log(l))
+	void update(int p, int q, int r, T x){
+		++ p, ++ q, ++ r;
+		for(auto i = p; i <= n; i += i & -i) for(auto j = q; j <= m; j += j & -j) for(auto k = r; k <= l; k += k & -k) data[i - 1][j - 1][k - 1] += x;
+	}
+	// Returns the sum of a[i][j][k] on [0, xr) X [0, yr) X [0, zr)
+	// O(log(n) * log(m) * log(l))
+	T prefix(int xr, int yr, int zr){
+		assert(0 <= xr && xr <= n && 0 <= yr && yr <= m && 0 <= zr && zr <= l);
+		T res{};
+		for(auto i = xr; i > 0; i -= i & -i) for(auto j = yr; j > 0; j -= j & -j) for(auto k = zr; k > 0; k -= k & -k) res += data[i - 1][j - 1][k - 1];
+		return res;
+	}
+	// Returns the sum of a[i][j][k] on [xl, xr) X [yl, yr) X [zl, zr)
+	// O(log(n) * log(m) * log(l))
+	T query(int xl, int xr, int yl, int yr, int zl, int zr){
+		assert(xl <= xr && yl <= yr && zl <= zr);
+		return prefix(xr, yr, zr) - prefix(xl, yr, zr) - prefix(xr, yl, zr) - prefix(xr, yr, zl) + prefix(xl, yl, zr) + prefix(xl, yr, zl) + prefix(xr, yl, zl) - prefix(xl, yl, zl);
+	}
+	// O(log(n) * log(m) * log(l))
+	T query(int x, int y, int z){
+		return prefix(x + 1, y + 1, z + 1) - prefix(x, y + 1, z + 1) - prefix(x + 1, y, z + 1) - prefix(x + 1, y + 1, z) + prefix(x, y, z + 1) + prefix(x, y + 1, z) + prefix(x + 1, y, z) - prefix(x, y, z);
+	}
+	template<class output_stream>
+	friend output_stream &operator<<(output_stream &out, const fenwick_tree_3d_sum<T> &fw){
+		for(auto i = 0; i < fw.n; ++ i){
+			out << "\n[";
+			for(auto j = 0; j < fw.m; ++ j){
+				for(auto k = 0; k < fw.l; ++ k){
+					out << fw.query(i, j, k);
+					if(k != fw.l - 1) out << ", ";
+				}
+			}
+			out << "]";
+		}
+		return out << "\n";
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>fenwick_tree_3d_sum</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

@@ -1,0 +1,74 @@
+<snippet>
+	<content><![CDATA[
+// Returns {min_cost, parent_vertices}
+// O(E * log(V))
+// Requires graph and disjoint_set_rollback
+template<class U, class T>
+optional<pair<U, vector<int>>> minimum_spanning_arborescence(const graph<T> &g, int src){
+	using E = typename graph<T>::Edge_t;
+	struct node{ /// lazy skew heap node
+		E key;
+		shared_ptr<node> l, r;
+		U delta;
+		void prop(){
+			key.cost += delta;
+			if(l) l->delta += delta;
+			if(r) r->delta += delta;
+			delta = 0;
+		}
+		E top() { prop(); return key; }
+	};
+	auto merge = [&](auto self, shared_ptr<node> a, shared_ptr<node> b)->shared_ptr<node>{
+		if(!a || !b) return a ?: b;
+		a->prop(), b->prop();
+		if(a->key.cost > b->key.cost) swap(a, b);
+		swap(a->l, (a->r = self(self, b, a->r)));
+		return a;
+	};
+	auto pop = [&](shared_ptr<node> &a){
+		a->prop(), a = merge(merge, a->l, a->r);
+	};
+	int n = g.n;
+	U cost = {};
+	vector<int> pv(n);
+	disjoint_set_rollback dsu(n);
+	vector<shared_ptr<node>> heap(n);
+	for(auto e: g.edge) heap[e.to] = merge(merge, heap[e.to], shared_ptr<node>(new node{e}));
+	vector<int> seen(n, -1), path(n);
+	seen[src] = src;
+	vector<E> Q(n), in(n, {-1, -1}), comp;
+	deque<tuple<int, int, vector<E>>> cycs;
+	for(auto s = 0; s < n; ++ s){
+		int u = s, qi = 0, w;
+		while(seen[u] < 0){
+			if(!heap[u]) return {};
+			E e = heap[u]->top();
+			heap[u]->delta -= e.cost, pop(heap[u]);
+			Q[qi] = e, path[qi ++] = u, seen[u] = s;
+			cost += e.cost, u = dsu.root(e.from);
+			if(seen[u] == s){ // found cycle, contract
+				shared_ptr<node> cyc;
+				int end = qi, state = dsu.state();
+				do cyc = merge(merge, cyc, heap[w = path[-- qi]]);
+				while(dsu.merge(u, w));
+				u = dsu.root(u), heap[u] = cyc, seen[u] = -1;
+				cycs.push_front({u, state, {&Q[qi], &Q[end]}});
+			}
+		}
+		for(auto i = 0; i < qi; ++ i) in[dsu.root(Q[i].to)] = Q[i];
+	}
+	for(auto &[u, t, comp]: cycs){ // restore sol (optional)
+		dsu.reverse_to(t);
+		E ine = in[u];
+		for(auto &e: comp) in[dsu.root(e.to)] = e;
+		in[dsu.root(ine.to)] = ine;
+	}
+	for(auto u = 0; u < n; ++ u) pv[u] = in[u].from;
+	return {{cost, pv}};
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>minimum_spanning_arborescence</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

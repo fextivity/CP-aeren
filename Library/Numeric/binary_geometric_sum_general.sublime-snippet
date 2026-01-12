@@ -1,0 +1,29 @@
+<snippet>
+	<content><![CDATA[
+// Additive monoid U acts on additive monoid T.
+// T_id: additive identity of T
+// add(T x, T y): returns x + y
+// apply(U b, T x): returns x * b
+// merge(U b, U c): returns b * b
+// Returns x + x * b + ... + x * b^(e-1)
+// O(log(e)) applications of add, apply, and merge
+template<class T, class U, class V>
+T binary_geometric_sum_general(T x, U b, V e, T T_id, auto add, auto apply, auto merge){
+	assert(e >= 0);
+	T res = T_id;
+	for(; e; e >>= 1){
+		if(e & 1){
+			res = add(x, res);
+			x = apply(b, x);
+		}
+		x = add(x, apply(b, x));
+		b = merge(b, b);
+	}
+	return res;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>binary_geometric_sum_general</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

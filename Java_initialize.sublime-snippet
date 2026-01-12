@@ -1,0 +1,190 @@
+<snippet>
+	<content><![CDATA[
+import java.util.*;
+
+public class a{
+	static Scanner sc = new Scanner(System.in);
+ 	static class Pair{
+		Integer x, y;
+		public Pair(Integer _x, Integer _y){
+			x = _x;
+			y = _y;
+		}
+		@Override
+		public String toString(){
+			return "(" + x + ", " + y + ")";
+		}
+	}
+ 	static class Tuple3{
+		Integer x, y, z;
+		public Tuple3(Integer _x, Integer _y, Integer _z){
+			x = _x;
+			y = _y;
+			z = _z;
+		}
+		@Override
+		public String toString(){
+			return "(" + x + ", " + y + ", " + z + ")";
+		}
+	}
+	static Integer min(Integer x, Integer y){
+		return Math.min(x, y);
+	}
+	static Integer min3(Integer x, Integer y, Integer z){
+		return Math.min(Math.min(x, y), z);
+	}
+	static Integer max(Integer x, Integer y){
+		return Math.max(x, y);
+	}
+	static Integer max3(Integer x, Integer y, Integer z){
+		return Math.max(Math.max(x, y), z);
+	}
+	static Long min(Long x, Long y){
+		return Math.min(x, y);
+	}
+	static Long min3(Long x, Long y, Long z){
+		return Math.min(Math.min(x, y), z);
+	}
+	static Long max(Long x, Long y){
+		return Math.max(x, y);
+	}
+	static Long max3(Long x, Long y, Long z){
+		return Math.max(Math.max(x, y), z);
+	}
+ 	static class Tuple4{
+		Integer x, y, z, w;
+		public Tuple4(Integer _x, Integer _y, Integer _z, Integer _w){
+			x = _x;
+			y = _y;
+			z = _z;
+			w = _w;
+		}
+	}
+	static final Integer mod = 1000000007;
+	static Integer add(Integer x, Integer y){
+		x += y;
+		if(x >= mod){
+			x -= mod;
+		}
+		return x;
+	}
+	static Integer sub(Integer x, Integer y){
+		x -= y;
+		if(x < 0){
+			x += mod;
+		}
+		return x;
+	}
+	static Integer mul(Integer x, Integer y){
+		return (int)((long)(int)x * y % mod);
+	}
+	static Integer pow(Integer b, Integer e){
+		Integer res = 1;
+		while(e > 0){
+			if(e % 2 == 1) res = mul(res, b);
+			b = mul(b, b);
+			e >>= 1;
+		}
+		return res;
+	}
+	static Integer inv(Integer b){
+		return pow(b, mod - 2);
+	}
+	static Integer div(Integer x, Integer y){
+		return mul(x, inv(y));
+	}
+	////////////////////////////////////////////////////
+	static Integer[] dsu;
+	static void dsu_clear(){
+		for(Integer i = 0; i < dsu.length; ++ i){
+			dsu[i] = -1;
+		}
+	}
+	static Integer dsu_root(Integer u){
+		return dsu[u] >= 0 ? dsu[u] = dsu_root(dsu[u]) : u;
+	}
+	static Integer dsu_size(Integer u){
+		return -dsu[dsu_root(u)];
+	}
+	static Boolean dsu_share(Integer u, Integer v){
+		return dsu_root(u).equals(dsu_root(v));
+	}
+	static Boolean dsu_merge(Integer u, Integer v){
+		u = dsu_root(u);
+		v = dsu_root(v);
+		if(u.equals(v)){
+			return false;
+		}
+		if(dsu[u] > dsu[v]){
+			u ^= v;
+			v ^= u;
+			u ^= v;
+		}
+		dsu[u] += dsu[v];
+		dsu[v] = u;
+		return true;
+	}
+	static ArrayList<Integer>[] adj;
+	static Integer[] size, pv, depth;
+	static Integer[][] lift;
+	static Integer jump(Integer u, Integer d){
+		for(Integer bit = 0; bit < 20; ++ bit){
+			if((d & 1 << bit) > 0){
+				u = lift[bit][u];
+			}
+		}
+		return u;
+	}
+	static Integer lca(Integer u, Integer v){
+		if(depth[u] < depth[v]){
+			u ^= v;
+			v ^= u;
+			u ^= v;
+		}
+		u = jump(u, depth[u] - depth[v]);
+		if(u.equals(v)){
+			return u;
+		}
+		for(Integer bit = 19; bit >= 0; -- bit){
+			if(lift[bit][u] != lift[bit][v]){
+				u = lift[bit][u];
+				v = lift[bit][v];
+			}
+		}
+		return lift[0][u];
+	}
+	static Integer tree_dist(Integer u, Integer v){
+		Integer w = lca(u, v);
+		return depth[u] + depth[v] - 2 * depth[w];
+	}
+	static final Integer INF = 1000000000;
+	static final Long LINF = 1000000000000000000l;
+	static void dfs(Integer u, Integer p){
+		if(p.equals(-1)){
+			depth[u] = 0;
+		}
+		for(Integer v: adj[u]){
+			if(!v.equals(p)){
+				depth[v] = depth[u] + 1;
+				dfs(v, u);
+			}
+		}
+	}
+	static Pair[] dr = new Pair[]{new Pair(1, 0), new Pair(0, 1), new Pair(-1, 0), new Pair(0, -1)};
+	static char[] drid = new char[]{'D', 'R', 'U', 'L'};
+	////////////////////////////////////////////////////
+	@SuppressWarnings("unchecked")
+	public static void main(String[] args){
+		$0
+	}
+}
+
+/*
+
+*/
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>initialize</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.java</scope> -->
+</snippet>

@@ -1,0 +1,78 @@
+<snippet>
+	<content><![CDATA[
+// Implicitly assumes that
+// 1. ring(0) is the additive identity and
+// 2. ring(1) is the multiplicative identity.
+template<class T>
+struct division_ring{
+	// Modify begin
+	T data;
+	bool operator==(const division_ring &x) const{
+		return data == x.data;
+	}
+	division_ring &operator+=(const division_ring &x){
+		data += x.data;
+		return *this;
+	}
+	division_ring &operator-=(const division_ring &x){
+		data -= x.data;
+		return *this;
+	}
+	division_ring &operator*=(const division_ring &x){
+		data *= x.data;
+		return *this;
+	}
+	division_ring &operator/=(const division_ring &x){
+		assert(!(*this == x));
+		data /= x.data;
+		return *this;
+	}
+	template<class ostream_t>
+	friend ostream_t &operator<<(ostream_t &out, const division_ring &x){
+		return out << x.data;
+	}
+	// Modify end
+	bool operator!=(const division_ring &x) const{
+		return !(*this == x);
+	}
+	division_ring operator+(const division_ring &x) const{
+		return division_ring(*this) += x;
+	}
+	division_ring operator+() const{
+		return *this;
+	}
+	division_ring operator-(const division_ring &x) const{
+		return division_ring(*this) -= x;
+	}
+	division_ring operator-() const{
+		return division_ring(0) - *this;
+	}
+	division_ring operator*(const division_ring &x) const{
+		return division_ring(*this) *= x;
+	}
+	division_ring operator/(const division_ring &x) const{
+		return division_ring(*this) /= x;
+	}
+	division_ring &operator++(){
+		return *this += division_ring(1);
+	}
+	division_ring operator++(int){
+		auto res = *this;
+		*this += division_ring(1);
+		return res;
+	}
+	division_ring &operator--(){
+		return *this -= division_ring(1);
+	}
+	division_ring operator--(int){
+		auto res = *this;
+		*this -= division_ring(1);
+		return res;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>division_ring</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

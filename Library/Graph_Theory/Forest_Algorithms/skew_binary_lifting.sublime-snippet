@@ -1,0 +1,90 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+struct skew_binary_lifting{
+	int n = 0;
+	vector<int> pv, depth, lift;
+	skew_binary_lifting(){ }
+	// pv: parent vertex (-1 if root of an arborescence)
+	skew_binary_lifting(const vector<int> &pv){
+		graph<int> g((int)pv.size());
+		vector<int> roots;
+		for(auto u = 0; u < (int)pv.size(); ++ u) if(~pv[u]) g.orient(pv[u], u); else roots.push_back(u);
+		*this = skew_binary_lifting(g, roots);
+	}
+	// O(|V|)
+	template<class T>
+	skew_binary_lifting(const graph<T> &g, const vector<int> &roots): n(g.n){
+		n = g.n;
+		pv.assign(n, -1);
+		depth.assign(n, -1);
+		lift.assign(n, -1);
+		auto dfs = [&](auto self, int u, int pe)->void{
+			for(auto id: g.adj[u]){
+				if(id == pe || g.ignore && g.ignore(id)) continue;
+				auto &e = g.edge[id];
+				int v = u ^ e.from ^ e.to;
+				depth[v] = depth[u] + 1;
+				pv[v] = u;
+				lift[v] = depth[lift[u]] - depth[u] == depth[lift[lift[u]]] - depth[lift[u]] ? lift[lift[u]] : u;
+				self(self, v, id);
+			}
+		};
+		for(auto u: roots) assert(!~depth[u]), depth[u] = 0, pv[u] = u, lift[u] = u, dfs(dfs, u, -1);
+	}
+	// O(1)
+	int add_root(){
+		int u = (int)pv.size();
+		depth.push_back(0);
+		pv.push_back(u);
+		lift.push_back(u);
+		return u;
+	}
+	// O(1)
+	void add_child(int u){
+		assert(0 <= u && u < (int)pv.size());
+		int v = (int)pv.size();
+		depth.push_back(depth[u] + 1);
+		pv.push_back(u);
+		lift.push_back(depth[lift[u]] - depth[u] == depth[lift[lift[u]]] - depth[lift[u]] ? lift[lift[u]] : u);
+	}
+	// Get the k-th ancestor of u;
+	// O(log |V|)
+	int ancestor(int u, int k) const{
+		assert(depth[u] >= k);
+		k = depth[u] - k;
+		while(depth[u] > k) u = depth[lift[u]] > k ? lift[u] : pv[u];
+		return u;
+	}
+	// Assumes u and v lies on the same arboresence
+	// O(log |V|)
+	int lca(int u, int v) const{
+		if(depth[u] < depth[v]) swap(u, v);
+		while(depth[u] > depth[v]) u = depth[lift[u]] >= depth[v] ? lift[u] : pv[u];
+		while(u != v) tie(u, v) = lift[u] == lift[v] ? pair{pv[u], pv[v]} : pair{lift[u], lift[v]};
+		return u;
+	}
+	// Get # of edges between u and v
+	// Assumes u and v lies on the same arboresence
+	// O(log |V|)
+	int steps(int u, int v, int w = -1) const{
+		return depth[u] + depth[v] - 2 * depth[~w ? w : lca(u, v)];
+	}
+	// For an ancestor p of u, pred(p) is T, ..., T, F, ..., F in decreasing order of depth. Returns the highest p with T
+	// O(log |V|)
+	int find_highest(int u, auto pred) const{
+		assert(pred(u));
+		while(pv[u] != u){
+			if(pred(lift[u])) u = lift[u];
+			else if(pred(pv[u])) u = pv[u];
+			else return u;
+		}
+		return u;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>skew_binary_lifting</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

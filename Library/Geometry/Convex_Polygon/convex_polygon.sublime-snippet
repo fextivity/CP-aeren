@@ -1,0 +1,136 @@
+<snippet>
+	<content><![CDATA[
+// Requires point
+template<class T>
+struct convex_polygon{
+	vector<point<T>> data;
+	// Construct the convex polygon as the convex hull of a
+	// O(n * log(n)) if is_sorted = false, O(n) otherwise
+	convex_polygon(vector<point<T>> a = {}, bool is_sorted = false){
+		if(!is_sorted) sort(a.begin(), a.end()), a.erase(unique(a.begin(), a.end()), a.end());;
+		vector<point<T>> upper;
+#define ADDP(C, cmp) while((int)C.size() > 1 && doubled_signed_area(C[(int)C.size() - 2], p, C.back()) cmp 0) C.pop_back(); C.push_back(p);
+		for(auto &p: a){
+			ADDP(data, >=)
+			ADDP(upper, <=)
+		}
+#undef ADDP
+		if((int)upper.size() >= 3) data.insert(data.end(), ++ upper.rbegin(), -- upper.rend());
+	}
+	friend ostream &operator<<(ostream &out, const convex_polygon &c){
+		out << "{";
+		for(auto p: c.data) out << p << ", ";
+		return out << (c.empty() ? "" : "\b\b") << "}";
+	}
+	int size() const{
+		return (int)data.size();
+	}
+	bool empty() const{
+		return data.empty();
+	}
+	point<T> &operator[](int i){
+		return data[i];
+	}
+	const point<T> &operator[](int i) const{
+		return data[i];
+	}
+	point<T> &front(){
+		return data.front();
+	}
+	const point<T> &front() const{
+		return data.front();
+	}
+	point<T> &back(){
+		return data.back();
+	}
+	const point<T> &back() const{
+		return data.back();
+	}
+	// Returns the sorted list of points
+	// O(n)
+	vector<point<T>> linearize() const{
+		if(data.empty()) return {};
+		auto res = data;
+		int p = max_element(res.begin(), res.end()) - res.begin();
+		reverse(res.begin() + p + 1, res.end());
+		inplace_merge(res.begin(), res.begin() + p + 1, res.end());
+		return res;
+	}
+	// Merge two convex polygons
+	// O(n + m)
+	convex_polygon operator^(const convex_polygon &c) const{
+		vector<point<T>> A = linearize(), B = c.linearize(), C((int)A.size() + (int)B.size());
+		merge(A.begin(), A.end(), B.begin(), B.end(), C.begin());
+		return {C, true};
+	}
+	convex_polygon &operator^=(const convex_polygon &c){
+		return *this = *this ^ c;
+	}
+	convex_polygon &operator+=(const point<T> &p){
+		for(auto &q: data) q += p;
+		return *this;
+	}
+	convex_polygon operator+(const point<T> &p) const{
+		return convex_polygon(*this) += p;
+	}
+	friend convex_polygon operator+(const point<T> &p, const convex_polygon &c){
+		return c + p;
+	}
+	// O(n)
+	vector<point<T>> boundary() const{
+		assert((int)size() >= 2);
+		auto res = data;
+		res.push_back(res[0]);
+		for(auto i = (int)res.size() - 1; i > 0; -- i) res[i] -= res[i - 1];
+		return res;
+	}
+	// Minkowski addition
+	// O(n + m)
+	convex_polygon operator+(const convex_polygon &c) const{
+		if(empty() || c.empty()) return {};
+		if((int)size() == 1) return c + data[0];
+		if((int)c.size() == 1) return *this + c[0];
+		auto A = boundary(), B = c.boundary();
+		convex_polygon res;
+		res.data.resize(A.size() + B.size() - 1);
+		res[0] = A[0] + B[0];
+		merge(A.begin() + 1, A.end(), B.begin() + 1, B.end(), res.data.begin() + 1, [&](auto p, auto q){
+			bool sign_p = p.x < 0 || p.x == 0 && p.y < 0;
+			bool sign_q = q.x < 0 || q.x == 0 && q.y < 0;
+			if(sign_p != sign_q) return sign_p < sign_q;
+			else return (p ^ q) > 0;
+		});
+		for(auto i = 1; i < (int)res.size(); ++ i) res[i] += res[i - 1];
+		assert(res.front() == res.back());
+		int size = 1;
+		for(auto i = 1; i < (int)res.size() - 1; ){
+			while(i < (int)res.size() - 1 && colinear(res[i - 1], res[i], res[i + 1]) && (res[i] - res[i - 1]) * (res[i + 1] - res[i]) > 0) ++ i;
+			if(i < (int)res.size() - 1) res[size ++] = res[i ++];
+		}
+		res.data.resize(size);
+		return res;
+	}
+	convex_polygon &operator+=(const convex_polygon &c){
+		return *this = *this + c;
+	}
+	// O(n)
+	convex_polygon operator-() const{
+		convex_polygon res = *this;
+		for(auto &p: res.data) p = -p;
+		rotate(res.data.begin(), min_element(res.data.begin(), res.data.end()), res.data.end());
+		return res;
+	}
+	// O(n)
+	convex_polygon operator-(const convex_polygon &c) const{
+		return *this + -c;
+	}
+	convex_polygon &operator-=(const convex_polygon &c) const{
+		return *this = *this + -c;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>convex_polygon</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

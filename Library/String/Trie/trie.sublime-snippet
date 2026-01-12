@@ -1,0 +1,41 @@
+<snippet>
+	<content><![CDATA[
+template<class Char_Type, class Adjacency_Type>
+struct trie{
+	int n = 1; // # of active nodes(cnt != 0)
+	vector<Adjacency_Type> next{{}};
+	vector<int> cnt{1};
+	trie(){ }
+	trie(const vector<Adjacency_Type> &next, const vector<int> &cnt): n((int)next.size()), next(next), cnt(cnt){ }
+	int extend(){
+		next.emplace_back();
+		cnt.push_back(0);
+		return (int)next.size() - 1;
+	}
+	void insert(const vector<Char_Type> &a, int u = 0){
+		if(!cnt[u] ++) ++ n;
+		for(auto c: a){
+			if(!next[u][c]) next[u][c] = extend();
+			u = next[u][c];
+			if(!cnt[u] ++) ++ n;
+		}
+	}
+	void erase(const vector<Char_Type> &a, int u = 0){
+		assert(cnt[u]);
+		if(!-- cnt[u]) -- n;
+		for(auto c: a){
+			u = next[u][c];
+			assert(u && cnt[u]);
+			if(!-- cnt[u]) -- n;
+		}
+	}
+	int size() const{ // # of states
+		return (int)cnt.size();
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>trie</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

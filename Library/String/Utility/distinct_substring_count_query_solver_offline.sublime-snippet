@@ -1,0 +1,81 @@
+<snippet>
+	<content><![CDATA[
+// Adamant orz (https://codeforces.com/blog/entry/62331)
+// Requires suffix_automaton
+template<class Char_Type, class Adjacency_Type>
+struct distinct_substring_count_query_solver_offline{
+	vector<int> &s;
+	suffix_automaton<Char_Type, Adjacency_Type> &aut;
+	vector<array<int, 3>> queries;
+	distinct_substring_count_query_solver_offline(vector<Char_Type> &s, suffix_automaton<Char_Type, Adjacency_Type> &aut): s(s), aut(aut){ }
+	// Query qi asks for the # of distinct substrings of the substring s[ql, qr).
+	void query(int qi, int ql, int qr){
+		assert(0 <= ql && ql <= qr && qr <= aut.max_len[aut.last]);
+		queries.push_back({qr, ql, qi});
+	}
+	// answer(qi, x): report that the answer to the query qi is x.
+	// O(n * log^2(n))
+	void solve(auto answer){
+		int n = aut.max_len[aut.last], m = (int)aut.size();
+		long long fw_tot = 0;
+		vector<long long> fw0(n + 1), fw1(n + 1);
+		auto range_add = [&](int ql, int qr, int x)->void{
+			long long y = 1LL * ql * x, z = 1LL * qr * x;
+			fw_tot += z - y;
+			for(auto l = ql + 1; l <= n; l += l & -l) fw0[l] += x, fw1[l] += y;
+			for(auto r = qr + 1; r <= n; r += r & -r) fw0[r] -= x, fw1[r] -= z;
+		};
+		auto query_sum = [&](int ql)->long long{
+			long long sum0 = 0, sum1 = 0;
+			for(auto l = ql; l; l -= l & -l) sum0 += fw0[l], sum1 += fw1[l];
+			return fw_tot - (sum0 * ql - sum1);
+		};
+		vector<int> seg_max(m << 1);
+		auto set_point = [&](int p, int x)->void{
+			for(seg_max[p += m] = x; p >>= 1; ) seg_max[p] = max(seg_max[p << 1], seg_max[p << 1 | 1]);
+		};
+		auto query_max = [&](int l, int r)->int{
+			int maxv = 0;
+			for(l += m, r += m; l < r; l >>= 1, r >>= 1){
+				if(l & 1) maxv = max(maxv, seg_max[l ++]);
+				if(r & 1) maxv = max(maxv, seg_max[-- r]);
+			}
+			return maxv;
+		};
+		int it = 0;
+		vector<int> pos(m), end(m);
+		aut.precalc_count();
+		auto dfs = [&](auto self, int u)->void{
+			pos[u] = it ++;
+			for(auto v: aut.inv_link[u]) self(self, v);
+			end[u] = it;
+		};
+		dfs(dfs, 0);
+		vector<vector<array<int, 2>>> has(n);
+		for(auto [qr, ql, qi]: queries){
+			if(qr - ql <= 1) answer(qi, qr - ql);
+			else has[qr - 1].push_back({ql, qi});
+		}
+		vector<int> upto(n), used(m);
+		used[0] = true;
+		for(auto qr = 1, u_cur = 0; qr <= n; ++ qr){
+			u_cur = aut.next_state(u_cur, s[qr - 1]);
+			range_add(qr - aut.max_len[u_cur], qr, 1);
+			int u = u_cur;
+			while(!used[u]) used[u] = true, u = aut.link[u];
+			while(u){
+				int qr = query_max(pos[u], end[u]);
+				range_add(qr - aut.max_len[u], qr - aut.max_len[upto[qr - 1]], -1);
+				swap(upto[qr - 1], u);
+			}
+			set_point(pos[u_cur], qr);
+			for(auto [ql, qi]: has[qr - 1]) answer(qi, query_sum(ql));
+		}
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>distinct_substring_count_query_solver_offline</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

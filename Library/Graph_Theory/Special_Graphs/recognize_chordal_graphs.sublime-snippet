@@ -1,0 +1,45 @@
+<snippet>
+	<content><![CDATA[
+// Returns {true, perfect elimination ordering} or {false, induced cycle of length >= 4}
+// O(n + m)
+// Requires graph and lexicographical_bfs_forest
+template<class T>
+optional<vector<int>> recognize_chordal_graphs(const graph<T> &g){
+	int n = g.n;
+	vector<vector<int>> adj(n);
+	for(auto u = 0; u < n; ++ u) for(auto id: g.adj[u]) if(!g.ignore || !g.ignore(id)) adj[g(u, id)].push_back(u);
+	lexicographical_bfs_forest lbf(n);
+	lbf.bfs(g);
+	for(auto u = 0; u < n; ++ u){
+		if(!~lbf.latest[u]) continue;
+		int v = lbf.latest[u];
+		for(auto w: adj[u]){
+			if(v != w && lbf.pos[w] < lbf.pos[u] && !binary_search(adj[v].begin(), adj[v].end(), w)){
+				vector<int> vis(n), par(n, -1);
+				vis[w] = true;
+				deque<int> dq{w};
+				while(!dq.empty()){
+					int x = dq.front(); dq.pop_front();
+					for(auto y: adj[x]){
+						if(vis[y] || y == u || y != v && binary_search(adj[u].begin(), adj[u].end(), y)) continue;
+						vis[y] = true;
+						dq.push_back(y);
+						par[y] = x;
+					}
+				}
+				vector<int> cycle{w, u};
+				for(auto x = v; x != w; x = par[x]) cycle.push_back(x);
+				return {};
+			}
+		}
+	}
+	auto order = lbf.order;
+	reverse(order.begin(), order.end());
+	return order;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>recognize_chordal_graphs</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

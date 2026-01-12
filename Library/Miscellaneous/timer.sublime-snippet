@@ -1,0 +1,46 @@
+<snippet>
+	<content><![CDATA[
+template<class T = long double>
+struct timer{
+	enum class unit{
+		s, ms, us, ns
+	};
+	int multiplier;
+	string suffix;
+	timer(int _unit = 0): timer(unit(_unit)){
+		assert(0 <= _unit && _unit < 4);
+	}
+	timer(unit _unit){
+		multiplier = array<int, 4>{1, 1'000, 1'000'000, 1'000'000'000}[(int)_unit];
+		suffix = array<string, 4>{"s", "ms", "us", "ns"}[(int)_unit];
+	}
+	template<int iter = 100>
+	T measure(auto f){
+		static_assert(iter >= 1);
+		f(); // Get rid of cold-cache effect
+		auto start = chrono::high_resolution_clock::now();
+		for(auto i = 0; i < iter; ++ i) f();
+		auto end = chrono::high_resolution_clock::now();
+		return chrono::duration<T>(end - start).count() * multiplier / iter;
+	}
+	chrono::time_point<chrono::high_resolution_clock> init = chrono::high_resolution_clock::now(), current = chrono::high_resolution_clock::now();
+	void refresh(){
+		current = chrono::high_resolution_clock::now();
+	}
+	// Measures time from last measure() call(construction if no such call)
+	T measure(){
+		T x = chrono::duration<T>(chrono::high_resolution_clock::now() - current).count() * multiplier;
+		refresh();
+		return x;
+	}
+	// Measures time from the construction
+	T measure_from_start(){
+		return chrono::duration<T>(chrono::high_resolution_clock::now() - init).count() * multiplier;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>timer</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

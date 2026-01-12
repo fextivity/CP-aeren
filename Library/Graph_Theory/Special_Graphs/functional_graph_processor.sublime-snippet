@@ -1,0 +1,200 @@
+<snippet>
+	<content><![CDATA[
+struct functional_graph_processor{
+	functional_graph_processor(){ }
+	functional_graph_processor(const vector<int> &next){
+		init((int)next.size());
+		build(next);
+	}
+	template<class Graph_t>
+	functional_graph_processor(const Graph_t &g){
+		init(g.n);
+		build(g);
+	}
+	void init(int n){
+		this->n = n;
+		cycle.clear();
+		cycle_id.assign(n, -1);
+		cycle_pos.assign(n, -1);
+		cycle_prev.assign(n, -1);
+		component_size.assign(n, -1);
+		root_of.assign(n, -1);
+		depth.assign(n, -1);
+		order.clear();
+		pos.assign(n, -1);
+		end.assign(n, -1);
+		size.assign(n, -1);
+		abr.assign(n, {});
+		was.assign(n, -2);
+		was2.assign(n, -2);
+		attempt = -1;
+	}
+	int attempt;
+	vector<int> was, was2;
+	void build(const vector<int> &next){
+		cycle.clear();
+		fill(cycle_id.begin(), cycle_id.end(), -1);
+		fill(cycle_pos.begin(), cycle_pos.end(), -1);
+		fill(cycle_prev.begin(), cycle_prev.end(), -1);
+		++ attempt;
+		for(auto u = 0; u < n; ++ u){
+			if(was[u] == attempt) continue;
+			int v = u;
+			while(was[v] != attempt){
+				was[v] = attempt;
+				v = next[v];
+			}
+			if(was2[v] != attempt){
+				int w = v;
+				vector<int> c;
+				while(was2[w] != attempt){
+					was2[w] = attempt;
+					cycle_id[w] = (int)cycle.size();
+					cycle_pos[w] = (int)c.size();
+					c.push_back(w);
+					root_of[w] = w;
+					depth[w] = 0;
+					w = next[w];
+				}
+				cycle.push_back(c);
+			}
+			auto dfs = [&](auto self, int u)->void{
+				if(was2[u] == attempt) return;
+				was2[u] = attempt;
+				int v = next[u];
+				self(self, v);
+				root_of[u] = root_of[v];
+				depth[u] = depth[v] + 1;
+				abr[v].push_back(u);
+			};
+			dfs(dfs, u);
+		}
+		for(auto u = 0; u < n; ++ u) if(~cycle_pos[u]) cycle_prev[next[u]] = u;
+		for(auto c: cycle){
+			auto dfs = [&](auto self, int u)->void{
+				size[u] = 1;
+				pos[u] = (int)order.size();
+				order.push_back(u);
+				for(auto v: abr[u]){
+					self(self, v);
+					size[u] += size[v];
+				}
+				end[u] = (int)order.size();
+			};
+			int csize = 0;
+			for(auto u: c){
+				dfs(dfs, u);
+				csize += size[u];
+			}
+			for(auto u: c) for(auto i = pos[u]; i < end[u]; ++ i){
+				int v = order[i];
+				component_size[v] = csize;
+			}
+		}
+	}
+	// Requires graph
+	template<class Graph>
+	void build(const Graph &g){
+		int n = g.n;
+		assert(n == (int)g.edge.size());
+		vector<int> pv(n, -1), state(n), on_cycle(n);
+		vector<vector<int>> cycle;
+		auto dfs = [&](auto self, int u, int p)->void{
+			state[u] = 1;
+			for(auto id: g.adj[u]){
+				if(g.ignore && g.ignore(id)) continue;
+				auto &e = g.edge[id];
+				int v = g(u, id);
+				if(v == p) continue;
+				if(state[v] == 1){
+					cycle.emplace_back();
+					for(auto w = u; w != v; w = pv[w]){
+						cycle.back().push_back(w);
+						on_cycle[w] = true;
+					}
+					cycle.back().push_back(v);
+					on_cycle[v] = true;
+				}
+				else if(state[v] == 0){
+					pv[v] = u;
+					self(self, v, u);
+				}
+			}
+			state[u] = 2;
+		};
+		for(auto u = 0; u < n; ++ u){
+			if(state[u] != 2){
+				assert(state[u] == 0);
+				dfs(dfs, u, -1);
+			}
+		}
+		vector<int> next(n, -1);
+		auto dfs2 = [&](auto self, int u, int p)->void{
+			for(auto id: g.adj[u]){
+				if(g.ignore && g.ignore(id)) continue;
+				auto &e = g.edge[id];
+				int v = g(u, id);
+				if(v == p || on_cycle[v]) continue;
+				next[v] = u;
+				self(self, v, u);
+			}
+		};
+		for(auto &c: cycle){
+			for(auto i = 0; i < (int)c.size(); ++ i) next[c[i]] = c[(i + 1) % (int)c.size()];
+			for(auto u: c) dfs2(dfs2, u, -1);
+		}
+		build(next);
+	}
+	friend ostream &operator<<(ostream &out, const functional_graph_processor &fgp){
+		out << "\nCycles: {\n";
+		for(auto i = 0; i < (int)fgp.cycle.size(); ++ i){
+			out << " {";
+			for(auto j = 0; j < (int)fgp.cycle[i].size(); ++ j){
+				out << fgp.cycle[i][j];
+				if(j + 1 < (int)fgp.cycle[i].size()) out << ", ";
+			}
+			out << "}";
+			if(i + 1 < (int)fgp.cycle.size()) out << ",";
+			out << "\n";
+		}
+		out << "}\n";
+		out << "Abr: {\n";
+		for(auto u = 0; u < (int)fgp.abr.size(); ++ u){
+			out << u << ": {";
+			for(auto i = 0; i < (int)fgp.abr[u].size(); ++ i){
+				out << fgp.abr[u][i];
+				if(i + 1 < (int)fgp.abr[u].size()) out << ", ";
+			}
+			out << "}";
+			if(u + 1 < (int)fgp.abr.size()) out << ",";
+			out << "\n";
+		}
+		out << "}\n";
+		out << "Order: {";
+		for(auto i = 0; i < (int)fgp.order.size(); ++ i){
+			out << fgp.order[i];
+			if(i + 1 < (int)fgp.order.size()) out << ", ";
+		}
+		out << "}\n";
+		return out;
+	}
+	int n;
+	vector<vector<int>> cycle;
+	vector<int> cycle_id; // id of the cycle it belongs to, -1 if not part of one
+	vector<int> cycle_pos; // position in its cycle, -1 if not part of one
+	vector<int> cycle_prev; // previous vertex in its cycle, -1 if not part of one
+	vector<int> component_size; // size of its weakly connected component
+	vector<int> root_of; // first reachable node in a cycle
+	vector<int> depth; // distance to its root
+	vector<vector<int>> abr; // forest of arborescences of reversed edges not on the cycles
+	vector<int> order; // dfs order of abr
+	vector<int> pos; // pos in the dfs order
+	vector<int> end; // [pos[u], end[u]) denotes the subtree
+	vector<int> size; // size of the subtree in abr
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>functional_graph_processor</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

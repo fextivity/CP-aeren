@@ -1,0 +1,37 @@
+<snippet>
+	<content><![CDATA[
+// Returns the number of cliques.
+// O(2^(n/2) * n + m)
+long long count_cliques(const vector<unsigned long long> &adjm){
+	int n = (int)adjm.size();
+	assert(n <= 64);
+	if(n <= 1) return n;
+	int nl = n >> 1, nr = n - nl;
+	static vector<int> sum;
+	sum.assign(1u << nr, 0);
+	sum[0] = 1;
+	static vector<unsigned long long> adjmask;
+	adjmask.resize(1u << nr);
+	adjmask[0] = (1u << nr) - 1;
+	for(auto mask = 1u; mask < 1u << nr; ++ mask){
+		int u = __builtin_ctz(mask);
+		adjmask[mask] = adjmask[mask ^ 1u << u] & (adjm[nl + u] >> nl | 1u << u);
+		if((adjmask[mask] & mask) == mask) sum[mask] = 1;
+	}
+	for(auto u = 0; u < nr; ++ u) for(auto mask = 0; mask < 1u << nr; ++ mask) if(mask & 1u << u) sum[mask] += sum[mask ^ 1u << u];
+	adjmask.resize(1u << nl);
+	adjmask[0] = (1ull << n) - 1;
+	long long res = sum.back() - 1;
+	for(auto mask = 1u; mask < 1u << nl; ++ mask){
+		int u = __builtin_ctz(mask);
+		adjmask[mask] = adjmask[mask ^ 1u << u] & (adjm[u] | 1u << u);
+		if((adjmask[mask] & mask) == mask) res += sum[adjmask[mask] >> nl];
+	}
+	return res;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>count_cliques</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

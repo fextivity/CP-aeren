@@ -1,0 +1,93 @@
+<snippet>
+	<content><![CDATA[
+// T_large must be able to hold O(T^4) (can be long long if coord <= 2e4)
+// O(n * log(n))
+// Requires point and quad_edge
+template<class T, class T_large, class F1, class F2>
+bool delaunay_triangulation(vector<point<T>> a, F1 process_outer_face, F2 process_triangles){
+	sort(a.begin(), a.end());
+	a.erase(unique(a.begin(), a.end()), a.end());
+	int n = (int)a.size();
+	if(n < 2) return {};
+	auto circular = [&](const point<T> &p, point<T> a, point<T> b, point<T> c){
+		a -= p, b -= p, c -= p;
+		return ((T_large)a.squared_norm() * (b ^ c) + (T_large)b.squared_norm() * (c ^ a) + (T_large)c.squared_norm() * (a ^ b)) * (doubled_signed_area(a, b, c) > 0 ? 1 : -1) > 0;
+	};
+	quad_edge<point<T>> qe;
+	auto recurse = [&](auto self, int l, int r)->array<int, 2>{
+		if(r - l <= 3){
+			int p = qe.make_sphere(a[l], a[l + 1]);
+			if(r - l == 2) return {p, qe.sym(p)};
+			int q = qe.make_sphere(a[l + 1], a[l + 2]);
+			qe.splice(qe.sym(p), q);
+			auto side = doubled_signed_area(a[l], a[l + 1], a[l + 2]);
+			int c = side ? qe.connect(q, p) : -1;
+			return {side < 0 ? qe.sym(c) : p, side < 0 ? c : qe.sym(q)};
+		}
+		int m = l + (r - l >> 1);
+		auto [ra, A] = self(self, l, m);
+		auto [B, rb] = self(self, m, r);
+		while(doubled_signed_area(qe.origin(B), qe.dest(A), qe.origin(A)) < 0 && (A = qe.lnext(A)) || doubled_signed_area(qe.origin(A), qe.dest(B), qe.origin(B)) > 0 && (B = qe.onext(qe.sym(B))));
+		int base = qe.connect(qe.sym(B), A);
+		if(qe.origin(A) == qe.origin(ra)) ra = qe.sym(base);
+		if(qe.origin(B) == qe.origin(rb)) rb = base;
+#define valid(e) (doubled_signed_area(qe.dest(e), qe.dest(base), qe.origin(base)) > 0)
+#define DEL(e, init, dir) \
+int e = qe.dir(init); \
+if(valid(e)) while(circular(qe.dest(qe.dir(e)), qe.dest(base), qe.origin(base), qe.dest(e))){ \
+	int t = qe.dir(e); \
+	qe.splice(e, qe.oprev(e)); \
+	qe.splice(qe.sym(e), qe.oprev(qe.sym(e))); \
+	qe.erase(qe.rot(qe.rot(qe.rot(e)))); \
+	qe.erase(qe.rot(qe.rot(e))); \
+	qe.erase(qe.rot(e)); \
+	qe.erase(e); \
+	e = t; \
+}
+		while(true){
+			DEL(LC, qe.sym(base), onext);
+			DEL(RC, base, oprev);
+			if(!valid(LC) && !valid(RC)) break;
+			if(!valid(LC) || valid(RC) && circular(qe.dest(RC), qe.origin(RC), qe.dest(LC), qe.origin(LC))) base = qe.connect(RC, qe.sym(base));
+			else base = qe.connect(qe.sym(base), qe.sym(LC));
+		}
+		return {ra, rb};
+	};
+	auto e = recurse(recurse, 0, n)[0];
+	vector<int> q = {e}, rem;
+	while(doubled_signed_area(qe.dest(qe.onext(e)), qe.dest(e), qe.origin(e)) < 0) e = qe.onext(e);
+	vector<point<T>> face;
+	bool colinear = false;
+#define ADD \
+{ \
+	int c = e; \
+	face.clear(); \
+	do{ \
+		qe.mark(c, true); \
+		face.push_back(qe.origin(c)); \
+		q.push_back(qe.sym(c)); \
+		rem.push_back(c); \
+		c = qe.lnext(c); \
+	}while(c != e); \
+}
+	ADD;
+	process_outer_face(face);
+	for(auto qi = 0; qi < (int)q.size(); ++ qi){
+		if(!qe.mark(e = q[qi])){
+			ADD;
+			colinear = false;
+			process_triangles(face[0], face[1], face[2]);
+		}
+	}
+	for(auto e: rem) qe.erase(qe.rot(e)), qe.erase(e);
+#undef valid
+#undef DEL
+#undef ADD
+	return !colinear;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>delaunay_triangulation</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

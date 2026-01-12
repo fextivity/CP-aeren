@@ -1,0 +1,31 @@
+<snippet>
+	<content><![CDATA[
+// (f*g)[mask] = sum{x and y = 0, x or y = mask}(f(x)g(y))
+// O(n * log(n)^2)
+template<class T, int SZ = 20>
+vector<T> convolve_subset(const vector<T> &p, const vector<T> &q){
+	int n = (int)p.size();
+	assert((int)q.size() == n && __builtin_popcount(n) == 1);
+	int w = __lg(n);
+	assert(w <= SZ);
+	vector<array<T, SZ>> x(n), y(n);
+	for(auto i = 0; i < n - 1; ++ i) x[i][__builtin_popcount(i)] = p[i];
+	for(auto k = 0; k < w; ++ k) for(auto i = 0; i < n; ++ i) if(~i >> k & 1) for(auto j = 0; j < w; ++ j) x[i | 1 << k][j] += x[i][j];
+	for(auto i = 0; i < n - 1; ++ i) y[i][__builtin_popcount(i)] = q[i];
+	for(auto k = 0; k < w; ++ k) for(auto i = 0; i < n; ++ i) if(~i >> k & 1) for(auto j = 0; j < w; ++ j) y[i | 1 << k][j] += y[i][j];
+	for(auto i = 0; i < n; ++ i) for(auto j = w - 1; j >= 0; -- j){
+		for(auto k = 1; k < w - j; ++ k) x[i][j + k] += x[i][j] * y[i][k];
+		x[i][j] *= y[i][0];
+	}
+	for(auto k = 0; k < w; ++ k) for(auto i = 0; i < n; ++ i) if(~i >> k & 1) for(auto j = 0; j < w; ++ j) x[i | 1 << k][j] -= x[i][j];
+	vector<T> res(n);
+	for(auto i = 0; i < n - 1; ++ i) res[i] = x[i][__builtin_popcount(i)];
+	for(auto i = 0; i < n; ++ i) res[n - 1] += p[i] * q[n - 1 - i];
+	return res;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>convolve_subset</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

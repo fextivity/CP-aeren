@@ -1,0 +1,80 @@
+<snippet>
+	<content><![CDATA[
+// endpoint type: 0(ray), 1(closed end), 2(open end)
+// Requires point and line
+#define CHECK(type, x, y) (type == 0 || x < y || x == y && type == 1)
+// Assumes parallel lines do not intersect
+template<class U, class T>
+optional<point<U>> intersect_no_parallel_overlap(int L_left, int L_right, int R_left, int R_right, const line<T> &L, const line<T> &M){
+	assert(0 <= min({L_left, L_right, R_left, R_right}) && max({L_left, L_right, R_left, R_right}) < 3);
+	T s = L.d ^ M.d;
+	if(s == 0) return {};
+	T ls = M.p - L.p ^ M.d, rs = M.p - L.p ^ L.d;
+	if(s < 0) s = -s, ls = -ls, rs = -rs;
+	if(CHECK(L_left, 0, ls) && CHECK(L_right, ls, s) && CHECK(R_left, 0, rs) && CHECK(R_right, rs, s)) return point<U>(L.p) + point<U>(L.d) * ls / s;
+	else return {};
+}
+#undef CHECK
+// Assumes parallel lines do not intersect
+template<class U, class T>
+optional<point<U>> intersect_closed_segments_no_parallel_overlap(const line<T> &L, const line<T> &M){
+	return intersect_no_parallel_overlap<U, T>(1, 1, 1, 1, L, M);
+}
+// Assumes parallel lines do not intersect
+template<class U, class T>
+optional<point<U>> intersect_open_segments_no_parallel_overlap(const line<T> &L, const line<T> &M){
+	return intersect_no_parallel_overlap<U, T>(2, 2, 2, 2, L, M);
+}
+// Assumes parallel lines do not intersect
+template<class U, class T>
+optional<point<U>> intersect_closed_rays_no_parallel_overlap(const line<T> &L, const line<T> &M){
+	return intersect_no_parallel_overlap<U, T>(1, 0, 1, 0, L, M);
+}
+// Assumes nothing
+template<class U, class T>
+optional<pair<point<U>, point<U>>> intersect_closed_segments(const line<T> &L, const line<T> &M){
+	auto s = L.d ^ M.d, ls = M.p - L.p ^ M.d;
+	if(!s){
+		if(ls) return {};
+		auto Lp = L.p, Lq = L.q(), Mp = M.p, Mq = M.q();
+		if(Lp > Lq) swap(Lp, Lq);
+		if(Mp > Mq) swap(Mp, Mq);
+		point<T> p = max(Lp, Mp), q = min(Lq, Mq);
+		if(p <= q) return pair<point<U>, point<U>>{p, q};
+		return {};
+	}
+	auto rs = M.p - L.p ^ L.d;
+	if(s < 0) s = -s, ls = -ls, rs = -rs;
+	if(0 <= ls && ls <= s && 0 <= rs && rs <= s){
+		auto p = point<U>(L.p) + point<U>(L.d) * ls / s;
+		return pair<point<U>, point<U>>{p, p};
+	}
+	else return {};
+}
+// Assumes nothing
+template<class U, class T>
+optional<pair<point<U>, point<U>>> intersect_open_segments(const line<T> &L, const line<T> &M){
+	auto s = L.d ^ M.d, ls = M.p - L.p ^ M.d;
+	if(!s){
+		if(ls) return {};
+		auto Lp = L.p, Lq = L.q(), Mp = M.p, Mq = M.q();
+		if(Lp > Lq) swap(Lp, Lq);
+		if(Mp > Mq) swap(Mp, Mq);
+		point<T> p = max(Lp, Mp), q = min(Lq, Mq);
+		if(p < q) return pair<point<U>, point<U>>{p, q};
+		return {};
+	}
+	auto rs = (M.p - L.p) ^ L.d;
+	if(s < 0) s = -s, ls = -ls, rs = -rs;
+	if(0 < ls && ls < s && 0 < rs && rs < s){
+		auto p = point<U>(L.p) + point<U>(L.d) * ls / s;
+		return pair<point<U>, point<U>>{p, p};
+	}
+	else return {};
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>line_intersection</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

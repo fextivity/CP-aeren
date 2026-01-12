@@ -1,0 +1,142 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+struct heavy_light_decomposition{
+	int n;
+	vector<vector<int>> adj; // stores edge ids
+	vector<int> pv;
+	vector<int> pe;
+	vector<int> size;
+	vector<int> root_of;
+	vector<int> root;
+	vector<int> depth;
+	vector<int> next; // highest point of the heavy path
+	vector<int> prev; // lowest point of the heavy path
+	vector<int> pos;
+	vector<int> end;
+	vector<int> order;
+	vector<int> was;
+	void _init(int n){
+		assert(n >= 1);
+		this->n = n;
+		adj.resize(n, {});
+		pv.resize(n, -1);
+		pe.resize(n, -1);
+		order.clear();
+		pos.resize(n, -1);
+		end.resize(n, -1);
+		size.resize(n, 1);
+		root_of.resize(n, -1);
+		root.clear();
+		depth.resize(n, -1);
+		next.resize(n, -1);
+		prev.resize(n, -1);
+		was.resize(n, -2);
+		++ attempt;
+	}
+	int attempt = -1;
+	template<class T>
+	void build(const graph<T> &g, const vector<int> &src){
+		_init(g.n);
+		for(auto id = 0; id < (int)g.edge.size(); ++ id){
+			if(g.ignore && g.ignore(id)) continue;
+			auto &e = g.edge[id];
+			adj[e.from].push_back(id), adj[e.to].push_back(id);
+		}
+		auto dfs_init = [&](auto self, int u)->void{
+			assert(was[u] != attempt); // CYCLE FOUND
+			was[u] = attempt;
+			prev[u] = u;
+			size[u] = 1;
+			if(root_of[u] != u){
+				adj[u].erase(find(adj[u].begin(), adj[u].end(), pe[u]));
+			}
+			for(auto &id: adj[u]){
+				int v = g(u, id);
+				pv[v] = u;
+				pe[v] = id;
+				depth[v] = depth[u] + 1;
+				root_of[v] = root_of[u];
+				next[v] = u;
+				self(self, v);
+				size[u] += size[v];
+				if(size[v] > size[g(u, adj[u][0])]) swap(id, adj[u][0]);
+			}
+			if(!adj[u].empty()) prev[u] = prev[g(u, adj[u][0])];
+		};
+		auto dfs_hld = [&](auto self, int u)->void{
+			pos[u] = (int)order.size();
+			order.push_back(u);
+			if(!adj[u].empty()){
+				int hv = g(u, adj[u][0]);
+				for(auto id: adj[u]){
+					int v = g(u, id);
+					next[v] = (v == hv ? next[u] : v);
+					self(self, v);
+				}
+			}
+			end[u] = (int)order.size();
+		};
+		for(auto r: src){
+			if(was[r] == attempt) continue;
+			pv[r] = pe[r] = -1;
+			depth[r] = 0;
+			root_of[r] = r;
+			root.push_back(r);
+			next[r] = r;
+			dfs_init(dfs_init, r);
+			dfs_hld(dfs_hld, r);
+		}
+	}
+	// Check if u is visited during the last build call
+	bool visited(int u) const{
+		assert(0 <= u && u < n);
+		return was[u] == attempt;
+	}
+	// O(1)
+	bool ancestor_of(int u, int v) const{
+		return pos[u] <= pos[v] && end[v] <= end[u];
+	}
+	int lca(int u, int v) const{
+		for(; next[u] != next[v]; v = pv[next[v]]) if(depth[next[u]] > depth[next[v]]) swap(u, v);
+		return depth[u] < depth[v] ? u : v;
+	}
+	int steps(int u, int v, int w = -1) const{
+		return depth[u] + depth[v] - 2 * depth[~w ? w : lca(u, v)];
+	}
+	// f reads the position in the data structure
+	// One application of f
+	void access_node(int u, auto f) const{
+		f(pos[u]);
+	}
+	// One application of f
+	template<int VALS_IN_EDGES = 0>
+	void access_subtree(int u, auto f) const{
+		f(pos[u] + VALS_IN_EDGES, end[u]);
+	}
+	// f(left, right, (left->right ?))
+	// O(log(n)) applications of f
+	template<int VALS_IN_EDGES = 0>
+	void access_path(int u, int v, auto f) const{
+		bool dir = true;
+		for(; next[u] != next[v]; v = pv[next[v]]){
+			if(depth[next[u]] > depth[next[v]]) swap(u, v), dir = !dir;
+			f(pos[next[v]], pos[v] + 1, dir);
+		}
+		if(depth[u] > depth[v]) swap(u, v), dir = !dir;
+		f(pos[u] + VALS_IN_EDGES, pos[v] + 1, dir);
+	}
+	// Pair of indices {l, r} in the data structure. resr is reversed(v->next[v], pv[next[v]]-> ...)
+	// O(log(n))
+	auto get_path(int u, int v) const{
+		vector<pair<int, int>> resl, resr;
+		access_path(u, v, [&](int l, int r, bool dir){ (dir ? resl : resr).push_back({l, r}); });
+		return pair{resl, resr};
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>heavy_light_decomposition</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

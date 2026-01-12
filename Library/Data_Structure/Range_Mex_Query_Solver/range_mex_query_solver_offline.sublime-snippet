@@ -1,0 +1,58 @@
+<snippet>
+	<content><![CDATA[
+struct range_mex_query_solver_offline{
+	int n;
+	vector<int> a;
+	vector<array<int, 3>> queries;
+	range_mex_query_solver_offline(const vector<int> &a): n((int)a.size()), a(a){
+		for(auto x: a) assert(x >= 0);
+	}
+	void query(int qi, int l, int r){
+		assert(0 <= l && l <= r && r <= n);
+		queries.push_back({l, r, qi});
+	}
+	// f(query id, answer)
+	// O((n + q) * log(n))
+	void solve(auto f){
+		sort(queries.begin(), queries.end());
+		int size = 1;
+		while(size <= n) size <<= 1;
+		int log = __lg(size);
+		vector<int> seg(size << 1, n);
+		while(!queries.empty() && queries.back()[0] == n){
+			f(queries.back()[2], 0);
+			queries.pop_back();
+		}
+		for(auto l = n - 1; l >= 0; -- l){
+			int x = size + min(a[l], n);
+			seg[x] = l;
+			for(auto i = 1; i <= log; ++ i) seg[x >> i] = max(
+				seg[(x >> i) << 1], seg[(x >> i) << 1 | 1]);
+			while(!queries.empty() && queries.back()[0] == l){
+				int mx = -1, ql = size;
+				do{
+					while(~ql & 1) ql >>= 1;
+					if(max(mx, seg[ql]) >= queries.back()[1]){
+						while(ql < size){
+							ql <<= 1;
+							if(max(mx, seg[ql]) < queries.back()[1]) mx = max(mx, seg[ql ++]);
+						}
+						f(queries.back()[2], ql - size);
+						goto _RANGE_MEX_QUERY_SOLVER_NEXT;
+					}
+					mx = max(mx, seg[ql]);
+					++ ql;
+				}while((ql & -ql) != ql);
+				f(queries.back()[2], n + 1);
+				_RANGE_MEX_QUERY_SOLVER_NEXT:;
+				queries.pop_back();
+			}
+		}
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>range_mex_query_solver_offline</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

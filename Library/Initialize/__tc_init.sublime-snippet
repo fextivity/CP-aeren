@@ -1,0 +1,57 @@
+<snippet>
+	<content><![CDATA[
+// #pragma GCC target("avx2,bmi2,popcnt,lzcnt")
+// #pragma GCC optimize("O3,unroll-loops")
+#include <bits/stdc++.h>
+// #include <x86intrin.h>
+using namespace std;
+using namespace numbers;
+#ifdef LOCAL
+	#include "Debug.h"
+#else
+	#define debug_endl() 42
+	#define debug(...) 42
+	#define debug2(...) 42
+	#define debug_bin(...) 42
+#endif
+// Returns the largest integer k with x >= k * y
+template<class T, class U> T floor_div(T x, U y){
+	assert(y > 0);
+	return x / y - (x % y < 0);
+}
+// Returns the smallest integer k with x <= k * y
+template<class T, class U> T ceil_div(T x, U y){
+	assert(y > 0);
+	return x / y + (x % y > 0);
+}
+template<class T> T &ctmin(T &x){ return x; }
+template<class T, class Head, class ...Tail> T &ctmin(T &x, const Head &h, const Tail &... t){ return ctmin(x = min<T>(x, h), t...); }
+template<class T> T &ctmax(T &x){ return x; }
+template<class T, class Head, class ...Tail> T &ctmax(T &x, const Head &h, const Tail &... t){ return ctmax(x = max<T>(x, h), t...); }
+
+
+
+int main(){
+	cin.tie(0)->sync_with_stdio(0);
+	cin.exceptions(ios::badbit | ios::failbit);
+	auto solve_testcase = [&](auto testcase_id)->int{
+		$0
+		return 0;
+	};
+	int testcase_count;
+	cin >> testcase_count;
+	for(auto testcase_id = 0; testcase_id < testcase_count; ++ testcase_id){
+		solve_testcase(testcase_id);
+	}
+	return 0;
+}
+
+/*
+
+*/
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>tc_init</tabTrigger>
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope>
+</snippet>

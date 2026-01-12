@@ -1,0 +1,146 @@
+<snippet>
+	<content><![CDATA[
+// Requires point
+template<class T>
+struct line{
+	point<T> p{}, d{1, 0}; // p + d*t
+	line(){ }
+	template<class U>
+	line(const line<U> &l): p(l.p), d(l.d){ }
+	template<class U, class V>
+	line(const point<U> &p, const point<V> &q, bool Two_Points = true): p(p), d(Two_Points ? q - p : q){ }
+	line(const point<T> &d): p(), d(d){ }
+	line(T a, T b, T c): p(abs(a) > T(1e-9) ? -c / a : 0, abs(a) <= T(1e-9) && abs(b) > T(1e-9) ? -c / b : 0), d(-b, a){ }
+	friend istream &operator>>(istream &in, line<T> &l){
+		in >> l.p >> l.d, l.d -= l.p;
+		return in;
+	}
+	friend ostream &operator<<(ostream &out, const line<T> &l){
+		return out << "{" << l.p << " -> " << l.q() << "}";
+	}
+	bool degenerate() const{
+		if constexpr(is_floating_point_v<T>) return d.norm() <= 1e-9;
+		else return d == point<T>();
+	}
+	point<T> q() const{
+		return p + d;
+	}
+	line &inplace_flip(){
+		p += d;
+		d = -d;
+		return *this;
+	}
+	line flip() const{
+		return line(*this).inplace_flip();
+	}
+	// d.y * (X - p.x) - d.x * (Y - p.y) = 0
+	tuple<T, T, T> coef() const{
+		return {d.y, -d.x, d.perp() * p};
+	}
+	bool parallel_to(const line<T> &L) const{
+		return abs(d ^ L.d) <= 1e-9;
+	}
+	line<double> translate(T x) const{
+		auto dir = d.perp();
+		return {point<double>(p) + dir.unit() * x, d, false};
+	}
+	line<long double> translatel(T x) const{
+		auto dir = d.perp();
+		return {point<long double>(p) + dir.unit_l() * x, d, false};
+	}
+	bool on_left(const point<T> &r) const{
+		return (r - p ^ d) < 0;
+	}
+	bool on_right(const point<T> &r) const{
+		return (r - p ^ d) > 0;
+	}
+	bool on_line(const point<T> &r) const{
+		return abs(r - p ^ d) <= 1e-9;
+	}
+	bool on_ray(const point<T> &r) const{
+		return abs(r - p ^ d) <= 1e-9 && (r - p) * d >= 0;
+	}
+	bool on_segment(const point<T> &r) const{
+		if(abs(r - p ^ d) > 1e-9) return false;
+		auto x = (r - p) * d;
+		return 0 <= x && x <= d.squared_norm();
+	}
+	bool on_open_segment(const point<T> &r) const{
+		if(abs(r - p ^ d) > 1e-9) return false;
+		auto x = (r - p) * d;
+		return 0 < x && x < d.squared_norm();
+	}
+	double distance_to_line(const point<T> &r) const{
+		return abs(r - p ^ d) / d.norm();
+	}
+	long double distance_to_line_l(const point<T> &r) const{
+		return abs(r - p ^ d) / d.norm_l();
+	}
+	double distance_to_ray(const point<T> &r) const{
+		return (r - p) * d <= 0 ? distance(p, r) : distance_to_line(r);
+	}
+	long double distance_to_ray_l(const point<T> &r) const{
+		return (r - p) * d <= 0 ? distance_l(p, r) : distance_to_line_l(r);
+	}
+	double distance_to_segment(const point<T> &r) const{
+		auto x = (r - p) * d;
+		return x <= 0 ? distance(p, r) : x >= d.squared_norm() >= 0 ? distance(q(), r) : distance_to_line(r);
+	}
+	long double distance_to_segment_l(const point<T> &r) const{
+		auto x = (r - p) * d;
+		return x <= 0 ? distance_l(p, r) : x >= d.squared_norm() ? distance_l(q(), r) : distance_to_line_l(r);
+	}
+	point<double> projection(const point<T> &r) const{
+		return point<double>(p) + (point<double>(r) - point<double>(p)) * d / d.squared_norm() * point<double>(d);
+	}
+	point<long double> projection_l(const point<T> &r) const{
+		return point<long double>(p) + (point<long double>(r) - point<long double>(p)) * d / d.squared_norm() * point<long double>(d);
+	}
+	// T must be a field.
+	point<T> projection_f(const point<T> &r) const{
+		return point<T>(p) + (r - p) * d / d.squared_norm() * point<T>(d);
+	}
+	point<double> reflection(const point<T> &r) const{
+		return 2.0 * projection(r) - point<double>(r);
+	}
+	point<long double> reflection_l(const point<T> &r) const{
+		return 2.0l * projection_l(r) - point<long double>(r);
+	}
+	// T must be a field.
+	point<T> reflection_f(const point<T> &r) const{
+		return T{2} * projection_f(r) - point<T>(r);
+	}
+	point<double> closest_point_on_segment(const point<T> &r) const{
+		auto x = (r - p) * d;
+		return x <= 0 ? point<double>(p) : x >= d.squared_norm() ? point<double>(q()) : projection(r);
+	}
+	point<long double> closest_point_on_segment_l(const point<T> &r) const{
+		auto x = (r - p) * d;
+		return x <= 0 ? point<long double>(p) : x >= d.squared_norm() ? point<long double>(q()) : projection_l(r);
+	}
+	// T must be a field.
+	point<T> closest_point_on_segment_f(const point<T> &r) const{
+		auto x = (r - p) * d;
+		return x <= 0 ? point<T>(p) : x >= d.squared_norm() ? point<T>(q()) : projection_f(r);
+	}
+};
+template<class T>
+bool concurrent(const line<T> &l0, const line<T> &l1, const line<T> &l2){
+	const T eps = (T)1e-9;
+	auto [a0, b0, c0] = l0.coef();
+	auto [a1, b1, c1] = l1.coef();
+	auto [a2, b2, c2] = l2.coef();
+	return a0 * (b1 * c2 - c1 * b2) + b0 * (c1 * a2 - a1 * c2) + c0 * (a1 * b2 - b1 * a2) <= eps;
+}
+
+using lineint = line<int>;
+using linell = line<long long>;
+using linelll = line<__int128_t>;
+using lined = line<double>;
+using lineld = line<long double>;
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>line</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

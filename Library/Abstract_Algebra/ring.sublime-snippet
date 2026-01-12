@@ -1,0 +1,70 @@
+<snippet>
+	<content><![CDATA[
+// Implicitly assumes that
+// 1. ring(0) is the additive identity and
+// 2. ring(1) is the multiplicative identity.
+template<class T>
+struct ring{
+	// Modify begin
+	T data;
+	bool operator==(const ring &x) const{
+		return data == x.data;
+	}
+	ring &operator+=(const ring &x){
+		data += x.data;
+		return *this;
+	}
+	ring &operator-=(const ring &x){
+		data -= x.data;
+		return *this;
+	}
+	ring &operator*=(const ring &x){
+		data *= x.data;
+		return *this;
+	}
+	template<class ostream_t>
+	friend ostream_t &operator<<(ostream_t &out, const ring &x){
+		return out << x.data;
+	}
+	// Modify end
+	bool operator!=(const ring &x) const{
+		return !(*this == x);
+	}
+	ring operator+(const ring &x) const{
+		return ring(*this) += x;
+	}
+	ring operator+() const{
+		return *this;
+	}
+	ring operator-(const ring &x) const{
+		return ring(*this) -= x;
+	}
+	ring operator-() const{
+		return ring(0) - *this;
+	}
+	ring operator*(const ring &x) const{
+		return ring(*this) *= x;
+	}
+	ring &operator++(){
+		return *this += ring(1);
+	}
+	ring operator++(int){
+		auto res = *this;
+		*this += ring(1);
+		return res;
+	}
+	ring &operator--(){
+		return *this -= ring(1);
+	}
+	ring operator--(int){
+		auto res = *this;
+		*this -= ring(1);
+		return res;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>ring</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

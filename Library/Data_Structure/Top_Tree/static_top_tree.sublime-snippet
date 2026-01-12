@@ -1,0 +1,327 @@
+<snippet>
+	<content><![CDATA[
+// Source: https://atcoder.jp/contests/abc351/submissions/52777033
+// Requires graph
+template<class Path_t, class Point_t, class F1, class F2, class F3, class F4>
+struct static_top_tree_base{
+#ifdef LOCAL
+	#define ASSERT(x) assert(x)
+#else
+	#define ASSERT(x) 42
+#endif
+	enum Type_t{ VERTEX, COMPRESS, RAKE, ADDEDGE, ADDVERTEX };
+	int _buffer;
+	int _new_vertex(int u, int v, int w, Type_t t){
+		if(!~u) u = _buffer ++;
+		pv[u] = -1, left[u] = v, right[u] = w, type[u] = t;
+		if(~v) pv[v] = u;
+		if(~w) pv[w] = u;
+		return u;
+	}
+	pair<int, int> _merge(vector<pair<int, int>> &a, Type_t t){
+		if((int)a.size() == 1) return a[0];
+		int u = 0;
+		for(auto x: a) u += x.second;
+		vector<pair<int, int>> b, c;
+		for(auto [i, s]: a) (u > s ? b : c).emplace_back(i, s), u -= s * 2;
+		auto [i, si] = _merge(b, t);
+		auto [j, sj] = _merge(c, t);
+		return {_new_vertex(-1, i, j, t), si + sj};
+	};
+	pair<int, int> _compress(int u){
+		vector<pair<int, int>> child{_add_vertex(u)};
+		while(!adj[u].empty()) child.push_back(_add_vertex(u = adj[u][0]));
+		return _merge(child, Type_t::COMPRESS);
+	}
+	pair<int, int> _rake(int u){
+		vector<pair<int, int>> child;
+		for(auto i = 1; i < (int)adj[u].size(); ++ i) child.push_back(_add_edge(adj[u][i]));
+		return child.empty() ? make_pair(-1, 0) : _merge(child, Type_t::RAKE);
+	}
+	pair<int, int> _add_edge(int u){
+		auto [v, vsize] = _compress(u);
+		return {_new_vertex(-1, v, -1, Type_t::ADDEDGE), vsize};
+	}
+	pair<int, int> _add_vertex(int u){
+		auto [v, vsize] = _rake(u);
+		return {_new_vertex(u, v, -1, !~v ? Type_t::VERTEX : Type_t::ADDVERTEX), vsize + 1};
+	}
+	void _refresh(int u){
+		switch(type[u]){
+		case Type_t::VERTEX:
+			ASSERT(!~left[u] && !~right[u]);
+			path_cluster[u] = singleton_path_cluster[u];
+			break;
+		case Type_t::COMPRESS:
+			ASSERT(~left[u] && ~right[u]);
+			path_cluster[u] = compress_path(path_cluster[left[u]], path_cluster[right[u]]);
+			break;
+		case Type_t::RAKE:
+			ASSERT(~left[u] && ~right[u]);
+			point_cluster[u] = rake(point_cluster[left[u]], point_cluster[right[u]]);
+			break;
+		case ADDEDGE:
+			ASSERT(~left[u] && !~right[u]);
+			point_cluster[u] = path_to_point(path_cluster[left[u]]);
+			break;
+		case ADDVERTEX:
+			ASSERT(~left[u] && !~right[u]);
+			path_cluster[u] = point_to_path(point_cluster[left[u]], u);
+			break;
+		default:
+			ASSERT(false);
+		}
+	}
+	template<class T>
+	void _build(const graph<T> &g, int u){
+		auto dfs = [&](auto self, int u)->int{
+			adj[u].clear();
+			was[u] = attempt;
+			int size = 1, opt = 0;
+			for(auto id: g.adj[u]){
+				if(g.ignore && g.ignore(id)) continue;
+				int v = g(u, id);
+				if(was[v] == attempt) continue;
+				adj[u].push_back(v);
+				int vsize = self(self, v);
+				size += vsize;
+				if(opt < vsize){
+					opt = vsize;
+					swap(adj[u].front(), adj[u].back());
+				}
+			}
+			return size;
+		};
+		dfs(dfs, u);
+		root.push_back(u);
+		top_tree_root.push_back(_compress(u).first);
+		auto initialize = [&](auto self, int u)->void{
+			if(~left[u]) self(self, left[u]);
+			if(~right[u]) self(self, right[u]);
+			_refresh(u);
+		};
+		initialize(initialize, top_tree_root.back());
+	}
+	friend ostream &operator<<(ostream &out, const static_top_tree_base &stt){
+		out << "\n";
+		for(auto i = 0; i < (int)stt.top_tree_root.size(); ++ i){
+			out << "Tree #" << i << "\n";
+			deque<int> dq{stt.top_tree_root[i]};
+			while(!dq.empty()){
+				int u = dq.front();
+				dq.pop_front();
+				out << " Node " << u << " -> ";
+				if(~stt.left[u]){
+					out << stt.left[u] << " ";
+					dq.push_back(stt.left[u]);
+				}
+				else out << "x ";
+				if(~stt.right[u]){
+					out << stt.right[u] << ", ";
+					dq.push_back(stt.right[u]);
+				}
+				else out << "x, ";
+				switch(stt.type[u]){
+				case Type_t::VERTEX:
+					ASSERT(!~stt.left[u] && !~stt.right[u]);
+					out << "type VERTEX   , path  cluster: " << stt.path_cluster[u] << "\n";
+					break;
+				case Type_t::COMPRESS:
+					ASSERT(~stt.left[u] && ~stt.right[u]);
+					out << "type COMPRESS , path  cluster: " << stt.path_cluster[u] << "\n";
+					break;
+				case Type_t::RAKE:
+					ASSERT(~stt.left[u] && ~stt.right[u]);
+					out << "type RAKE     , point cluster: " << stt.point_cluster[u] << "\n";
+					break;
+				case ADDEDGE:
+					ASSERT(~stt.left[u] && !~stt.right[u]);
+					out << "type ADDEDGE  , point cluster: " << stt.point_cluster[u] << "\n";
+					break;
+				case ADDVERTEX:
+					ASSERT(~stt.left[u] && !~stt.right[u]);
+					out << "type ADDVERTEX, path  cluster: " << stt.path_cluster[u] << "\n";
+					break;
+				default:
+					ASSERT(false);
+				}
+			}
+		}
+		return out;
+	}
+	int n;
+	vector<vector<int>> adj;
+	vector<int> root;
+	vector<int> top_tree_root;
+	vector<int> pv;
+	vector<int> left;
+	vector<int> right;
+	vector<Type_t> type;
+	vector<Path_t> path_cluster;
+	vector<Point_t> point_cluster;
+	/*
+		-> a
+	*/
+	// vertex -> Path_t
+	// create a singleton path cluster
+	vector<Path_t> singleton_path_cluster;
+	/*
+		  a      e              a
+		 / \    / \            / \
+		b   c  f   g  ->      b   c
+		 \      \            / \
+		  d      h          e   d
+		                   / \
+		                  f   g
+		                   \
+		                    h
+	*/
+	// Path_t, Path_t -> Path_t
+	// merge two path clusters
+	F1 compress_path;
+	/*
+		O      b
+		|  ->  |
+		a      a
+	*/
+	// Point_t, vertex -> Path_t
+	// convert a point cluster into a path cluster by filling the auxiliary root
+	F2 point_to_path;
+	/*
+		O  O       O
+		|  |  ->  / \
+		a  b     a  b
+	*/
+	// Point_t, Point_t -> Point_t
+	// merge two point clusters
+	F3 rake;
+	/*
+		  a         O
+		 / \   ->   |
+		b   c       a
+		           / \
+		          b   c
+	*/
+	// Path_t -> Point_t
+	// convert a path cluster into a point cluster by adding an edge with auxiliary root
+	F4 path_to_point;
+	static_top_tree_base(F1 compress_path, F2 point_to_path, F3 rake, F4 path_to_point): compress_path(compress_path), point_to_path(point_to_path), rake(rake), path_to_point(path_to_point){ }
+	int attempt;
+	vector<int> was;
+	void init(int n){
+		this->n = n;
+		adj.assign(n, {});
+		root.clear();
+		top_tree_root.clear();
+		pv.assign(4 * n, -1);
+		left.assign(4 * n, -1);
+		right.assign(4 * n, -1);
+		type.assign(4 * n, Type_t::VERTEX);
+		singleton_path_cluster.resize(n);
+		path_cluster.resize(4 * n);
+		point_cluster.resize(4 * n);
+		was.assign(n, -2);
+		attempt = -1;
+	}
+	// g must be a forest
+	template<class T>
+	void build(const graph<T> &g, const vector<int> &src, const vector<Path_t> &singleton_path_cluster){
+		ASSERT(g.n <= n && g.n == (int)singleton_path_cluster.size());
+		copy(singleton_path_cluster.begin(), singleton_path_cluster.end(), this->singleton_path_cluster.begin());
+		root.clear(), top_tree_root.clear();
+		++ attempt;
+		_buffer = g.n;
+		for(auto u: src){
+			ASSERT(0 <= u && u < g.n);
+			if(was[u] != attempt) _build(g, u);
+		}
+	}
+	// g must be a forest
+	template<class T>
+	void build_all(const graph<T> &g, const vector<Path_t> &singleton_path_cluster){
+		ASSERT(g.n <= n && g.n == (int)singleton_path_cluster.size());
+		copy(singleton_path_cluster.begin(), singleton_path_cluster.end(), this->singleton_path_cluster.begin());
+		root.clear(), top_tree_root.clear();
+		++ attempt;
+		_buffer = g.n;
+		for(auto u = 0; u < g.n; ++ u) if(was[u] != attempt) _build(g, u);
+	}
+	bool visited(int u){
+		ASSERT(0 <= u && u < n);
+		return was[u] == attempt;
+	}
+	// O(1)
+	Path_t query(int i = 0) const{
+		ASSERT(0 <= i && i < (int)top_tree_root.size());
+		return path_cluster[top_tree_root[i]];
+	}
+	// O(log(n))
+	Path_t update_and_query(int u, const Path_t &x){
+		ASSERT(0 <= u && u < n);
+		for(singleton_path_cluster[u] = x; ; u = pv[u]){
+			_refresh(u);
+			if(!~pv[u]) return path_cluster[u];
+		}
+	}
+};
+
+template<class Path_t, class Point_t, class F1, class F2, class F3, class F4>
+auto make_static_top_tree(F1 compress_path, F2 point_to_path, F3 rake, F4 path_to_point){
+	return static_top_tree_base<Path_t, Point_t, F1, F2, F3, F4>(compress_path, point_to_path, rake, path_to_point);
+}
+// Verified on https://codeforces.com/contest/1942/problem/H
+// Consider a dynamic programming over a tree with state_cnt number of states dp[u][0], ..., dp[u][state_cnt - 1]
+// where the recurrence is given by dp[u][i] = base_value(u)[i] * \prod_{v is child of u} dot(matrix[i], dp[v]), and the underlying ring is commutative.
+// Construct a static top tree to compute dp[root] dynamically
+// dp[root][i] is the sum of i-th row in the query result
+template<class T, size_t state_cnt, class F1, class F2, class F3>
+auto make_static_top_tree_from_matrix_dp(
+	F1 get_base_value,
+	array<array<T, state_cnt>, state_cnt> matrix,
+	F2 ring_add,
+	T ring_additive_identity,
+	F3 ring_multiply
+){
+	using Path_t = array<array<T, state_cnt>, state_cnt>;
+	using Point_t = array<T, state_cnt>;
+	auto compress_path = [=](const Path_t &x, const Path_t &y)->Path_t{
+		Path_t res;
+		for(auto i = 0; i < state_cnt; ++ i) res[i].fill(ring_additive_identity);
+		for(auto i = 0; i < state_cnt; ++ i) for(auto j = 0; j < state_cnt; ++ j) for(auto k = 0; k < state_cnt; ++ k) res[i][k] = ring_add(res[i][k], ring_multiply(x[i][j], y[j][k]));
+		return res;
+	};
+	auto point_to_path = [=](const Point_t &x, int u)->Path_t{
+		Point_t base = get_base_value(u);
+		for(auto i = 0; i < state_cnt; ++ i) base[i] = ring_multiply(base[i], x[i]);
+		Path_t res;
+		for(auto i = 0; i < state_cnt; ++ i) res[i].fill(ring_additive_identity);
+		for(auto i = 0; i < state_cnt; ++ i) for(auto j = 0; j < state_cnt; ++ j) res[i][j] = ring_add(res[i][j], ring_multiply(matrix[i][j], base[j]));
+		return res;
+	};
+	auto rake = [=](const Point_t &x, const Point_t &y)->Point_t{
+		Point_t res;
+		res.fill(ring_additive_identity);
+		for(auto i = 0; i < state_cnt; ++ i) res[i] = ring_add(res[i], ring_multiply(x[i], y[i]));
+		return res;
+	};
+	auto path_to_point = [=](const Path_t &f)->Point_t{
+		Point_t res;
+		res.fill(ring_additive_identity);
+		for(auto i = 0; i < state_cnt; ++ i) for(auto j = 0; j < state_cnt; ++ j) res[i] = ring_add(res[i], f[i][j]);
+		return res;
+	};
+	auto generate_singleton = [=](int u)->Path_t{
+		Point_t base = get_base_value(u);
+		Path_t res;
+		for(auto i = 0; i < state_cnt; ++ i) res[i].fill(ring_additive_identity);
+		for(auto i = 0; i < state_cnt; ++ i) for(auto j = 0; j < state_cnt; ++ j) res[i][j] = ring_add(res[i][j], ring_multiply(matrix[i][j], base[j]));
+		return res;
+	};
+	return pair{static_top_tree_base<Path_t, Point_t, decltype(compress_path), decltype(point_to_path), decltype(rake), decltype(path_to_point)>(compress_path, point_to_path, rake, path_to_point), generate_singleton};
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>static_top_tree</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

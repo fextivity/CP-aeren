@@ -1,0 +1,375 @@
+<snippet>
+	<content><![CDATA[
+template<bool HAS_QUERY, bool HAS_UPDATE, class T, class U, class F1, class F2, class F3>
+struct segment_tree_base{
+#ifdef LOCAL
+	#define ASSERT(x) assert(x)
+#else
+	#define ASSERT(x) 42
+#endif
+#define ifQ if constexpr(HAS_QUERY)
+#define ifU if constexpr(HAS_UPDATE)
+	static_assert(HAS_QUERY || HAS_UPDATE);
+	int n, size, log;
+	vector<T> data;
+	vector<U> data_action;
+	F1 TT; // monoid operation (always adjacent)
+	T T_id; // monoid identity
+	F2 UU; // monoid operation (superset, subset)
+	U U_id; // monoid identity
+	F3 UT; // action of U on T (superset, subset)
+	// O(n)
+	segment_tree_base(F1 TT, T T_id, F2 UU, U U_id, F3 UT): TT(TT), T_id(T_id), UU(UU), U_id(U_id), UT(UT){ }
+	segment_tree_base &operator=(const segment_tree_base &seg){
+		n = seg.n;
+		size = seg.size;
+		log = seg.log;
+		data = seg.data;
+		data_action = seg.data_action;
+	}
+	// O(1)
+	friend void swap(segment_tree_base &x, segment_tree_base &y){
+		swap(x.n, y.n);
+		swap(x.size, y.size);
+		swap(x.log, y.log);
+		swap(x.data, y.data);
+		swap(x.data_action, y.data_action);
+	}
+	// O(n)
+	void build(int n){
+		static_assert(HAS_QUERY);
+		build(n, [&](int i){ return T_id; });
+	}
+	// O(n)
+	void build(int n, T x){
+		static_assert(HAS_QUERY);
+		build(n, [&](int i){ return x; });
+	}
+	// O(n)
+	template<class V>
+	void build(const vector<V> &a){
+		static_assert(HAS_QUERY);
+		build((int)a.size(), [&](int i){ return a[i]; });
+	}
+	// get_data(i) is the data at index i
+	// O(n)
+	void build(int n, auto get_data){
+		static_assert(HAS_QUERY);
+		ASSERT(0 <= n);
+		this->n = n;
+		size = 1;
+		while(size < n) size <<= 1;
+		log = __lg(size);
+		data.assign(size << 1, T_id);
+		for(auto i = 0; i < n; ++ i) data[size + i] = get_data(i);
+		for(auto i = size - 1; i >= 1; -- i) refresh(i);
+		ifU data_action.assign(size, U_id);
+	}
+	// O(n)
+	void build_action(int n){
+		static_assert(!HAS_QUERY && HAS_UPDATE);
+		build_action(n, [&](int i){ return U_id; });
+	}
+	// O(n)
+	void build_action(int n, U f){
+		static_assert(!HAS_QUERY && HAS_UPDATE);
+		build_action(n, [&](int i){ return f; });
+	}
+	// O(n)
+	template<class V>
+	void build_action(const vector<V> &a){
+		static_assert(!HAS_QUERY && HAS_UPDATE);
+		build_action((int)a.size(), [&](int i){ return a[i]; });
+	}
+	// get_data(i) is the data at index i
+	// O(n)
+	void build_action(int n, auto get_data){
+		static_assert(!HAS_QUERY && HAS_UPDATE);
+		this->n = n;
+		size = 1;
+		while(size < n) size <<= 1;
+		log = __lg(size);
+		data_action.assign(size << 1, U_id);
+		for(auto i = 0; i < n; ++ i) data_action[size + i] = get_data(i);
+	}
+	// O(1)
+	void refresh(int u){
+		static_assert(HAS_QUERY);
+		data[u] = TT(data[u << 1], data[u << 1 | 1]);
+	}
+	// O(1)
+	void apply(int u, U f){
+		static_assert(HAS_UPDATE);
+		ifQ data[u] = UT(f, data[u]);
+		if(!HAS_QUERY || u < size) data_action[u] = UU(f, data_action[u]);
+	}
+	// O(1)
+	void push(int u){
+		static_assert(HAS_UPDATE);
+		apply(u << 1, data_action[u]), apply(u << 1 | 1, data_action[u]);
+		data_action[u] = U_id;
+	}
+	// O(log(n)) if HAS_UPDATE, O(1) otherwise.
+	T query(int p){
+		static_assert(HAS_QUERY);
+		ASSERT(0 <= p && p < n);
+		p += size;
+		ifU for(auto i = log; i >= 1; -- i) push(p >> i);
+		return data[p];
+	}
+	// O(log(n))
+	U query_action(int p){
+		static_assert(!HAS_QUERY && HAS_UPDATE);
+		ASSERT(0 <= p && p < n);
+		p += size;
+		ifU for(auto i = log; i >= 1; -- i) push(p >> i);
+		return data_action[p];
+	}
+	// O(log(n))
+	T query(int ql, int qr){
+		static_assert(HAS_QUERY);
+		ASSERT(0 <= ql && ql <= qr && qr <= n);
+		if(ql == qr) return T_id;
+		ql += size, qr += size;
+		ifU for(auto i = log; i >= 1; -- i){
+			if(ql >> i << i != ql) push(ql >> i);
+			if(qr >> i << i != qr) push(qr >> i);
+		}
+		T res_left = T_id, res_right = T_id;
+		for(; ql < qr; ql >>= 1, qr >>= 1){
+			if(ql & 1) res_left = TT(res_left, data[ql ++]);
+			if(qr & 1) res_right = TT(data[-- qr], res_right);
+		}
+		return TT(res_left, res_right);
+	}
+	vector<int> _decomposed_nodes;
+	// find at most 2 * log2(n) intervals whose disjoint union is [ql, qr), and access their aggregations
+	template<bool in_order = true>
+	void decompose_query(int ql, int qr, auto access){
+		static_assert(HAS_QUERY);
+		ASSERT(0 <= ql && ql <= qr && qr <= n);
+		if(ql == qr) return;
+		ql += size, qr += size;
+		ifU for(auto i = log; i >= 1; -- i){
+			if(ql >> i << i != ql) push(ql >> i);
+			if(qr >> i << i != qr) push(qr >> i);
+		}
+		if constexpr(in_order){
+			int di = 0;
+			_decomposed_nodes.resize(log + 1);
+			for(; ql < qr; ql >>= 1, qr >>= 1){
+				if(ql & 1) access(data[ql ++]);
+				if(qr & 1) _decomposed_nodes[di ++] = -- qr;
+			}
+			for(; di -- > 0; ) access(data[_decomposed_nodes[di]]);
+		}
+		else{
+			for(; ql < qr; ql >>= 1, qr >>= 1){
+				if(ql & 1) access(data[ql ++]);
+				if(qr & 1) access(data[-- qr]);
+			}
+		}
+	}
+	// O(1)
+	T query_all() const{
+		static_assert(HAS_QUERY);
+		return data[1];
+	}
+	// O(n)
+	vector<T> to_array(){
+		static_assert(HAS_QUERY);
+		ifU for(auto u = 1; u < size; ++ u) push(u);
+		return vector<T>(data.begin() + size, data.begin() + size + n);
+	}
+	// O(n)
+	vector<U> to_array_of_updates(){
+		static_assert(!HAS_QUERY && HAS_UPDATE);
+		for(auto u = 1; u < size; ++ u) push(u);
+		return vector<U>(data_action.begin() + size, data_action.begin() + size + n);
+	}
+	// O(log(n))
+	void set(int p, T x){
+		static_assert(HAS_QUERY);
+		ASSERT(0 <= p && p < n);
+		p += size;
+		ifU for(auto i = log; i >= 1; -- i) push(p >> i);
+		data[p] = x;
+		for(auto i = 1; i <= log; ++ i) refresh(p >> i);
+	}
+	// O(log(n))
+	void set_action(int p, U f){
+		static_assert(!HAS_QUERY && HAS_UPDATE);
+		ASSERT(0 <= p && p < n);
+		p += size;
+		for(auto i = log; i >= 1; -- i) push(p >> i);
+		data_action[p] = f;
+	}
+	// O(log(n))
+	void update(int p, U f){
+		static_assert(HAS_UPDATE);
+		ASSERT(0 <= p && p < n);
+		p += size;
+		for(auto i = log; i >= 1; -- i) push(p >> i);
+		ifQ{
+			data[p] = UT(f, data[p]);
+			for(auto i = 1; i <= log; ++ i) refresh(p >> i);
+		}
+		else data_action[p] = UU(f, data_action[p]);
+	}
+	// O(log(n))
+	void update(int ql, int qr, U f){
+		static_assert(HAS_UPDATE);
+		ASSERT(0 <= ql && ql <= qr && qr <= n);
+		if(ql == qr) return;
+		ql += size, qr += size;
+		for(auto i = log; i >= 1; -- i){
+			if(ql >> i << i != ql) push(ql >> i);
+			if(qr >> i << i != qr) push(qr >> i);
+		}
+		int _ql = ql, _qr = qr;
+		for(; ql < qr; ql >>= 1, qr >>= 1){
+			if(ql & 1) apply(ql ++, f);
+			if(qr & 1) apply(-- qr, f);
+		}
+		ql = _ql, qr = _qr;
+		ifQ for(auto i = 1; i <= log; ++ i){
+			if(ql >> i << i != ql) refresh(ql >> i);
+			if(qr >> i << i != qr) refresh(qr >> i);
+		}
+	}
+	void update_beats(int ql, int qr, auto exit_rule, auto enter_rule, auto update_rule){
+		static_assert(HAS_QUERY && HAS_UPDATE);
+		ASSERT(0 <= ql && ql <= qr && qr <= n);
+		if(ql == qr) return;
+		ql += size, qr += size;
+		for(auto i = log; i >= 1; -- i){
+			if(ql >> i << i != ql) push(ql >> i);
+			if(qr >> i << i != qr) push(qr >> i);
+		}
+		auto recurse = [&](auto self, int u)->void{
+			if(exit_rule(data[u])) return;
+			if(enter_rule(data[u])){
+				apply(u, update_rule(data[u]));
+				return;
+			}
+			push(u);
+			self(self, u << 1), self(self, u << 1 | 1);
+			refresh(u);
+		};
+		int _ql = ql, _qr = qr;
+		for(; ql < qr; ql >>= 1, qr >>= 1){
+			if(ql & 1) recurse(recurse, ql ++);
+			if(qr & 1) recurse(recurse, -- qr);
+		}
+		ql = _ql, qr = _qr;
+		for(auto i = 1; i <= log; ++ i){
+			if(ql >> i << i != ql) refresh(ql >> i);
+			if(qr >> i << i != qr) refresh(qr >> i);
+		}
+	}
+	// pred(sum[ql, r)) is T, T, ..., T, F, F, ..., F
+	// Returns max r with T
+	// O(log(n))
+	int max_pref(int ql, auto pred){
+		static_assert(HAS_QUERY);
+		ASSERT(0 <= ql && ql <= n && pred(T_id));
+		if(ql == n) return n;
+		ql += size;
+		ifU for(auto i = log; i >= 1; -- i) push(ql >> i);
+		T sum = T_id;
+		do{
+			while(~ql & 1) ql >>= 1;
+			if(!pred(TT(sum, data[ql]))){
+				while(ql < size){
+					ifU push(ql);
+					ql = ql << 1;
+					if(pred(TT(sum, data[ql]))) sum = TT(sum, data[ql ++]);
+				}
+				return ql - size;
+			}
+			sum = TT(sum, data[ql]);
+			++ ql;
+		}while((ql & -ql) != ql);
+		return n;
+	}
+	// pred(sum[l, qr)) is F, F, ..., F, T, T, ..., T
+	// Returns min l with T
+	// O(log(n))
+	int max_suff(int qr, auto pred){
+		static_assert(HAS_QUERY);
+		ASSERT(0 <= qr && qr <= n && pred(T_id));
+		if(qr == 0) return 0;
+		qr += size;
+		ifU for(auto i = log; i >= 1; -- i) push(qr - 1 >> i);
+		T sum = T_id;
+		do{
+			-- qr;
+			while(qr > 1 && qr & 1) qr >>= 1;
+			if(!pred(TT(data[qr], sum))){
+				while(qr < size){
+					ifU push(qr);
+					qr = qr << 1 | 1;
+					if(pred(TT(data[qr], sum))) sum = TT(data[qr --], sum);
+				}
+				return qr + 1 - size;
+			}
+			sum = TT(data[qr], sum);
+		}while((qr & -qr) != qr);
+		return 0;
+	}
+	// Assuming each index x stores a non-negative integer indicating how many of x exists,
+	// find the k-th smallest element >= ql, or return n if no such element
+	// O(log(n))
+	int find_by_order(int ql, long long k) const{
+		ASSERT(0 <= ql && ql <= n && 0 <= k);
+		return max_pref(ql, [&](auto sum){ return sum <= k; });
+	}
+	// Assuming each index x stores a non-negative integer indicating how many of x exists,
+	// find the k-th largest element < qr, or return -1 if no such element
+	// O(log(n))
+	int find_by_reverse_order(int qr, long long k) const{
+		ASSERT(0 <= qr && qr <= n && 0 <= k);
+		return max_suff(qr, [&](auto sum){ return sum <= k; }) - 1;
+	}
+	template<class output_stream>
+	friend output_stream &operator<<(output_stream &out, segment_tree_base<HAS_QUERY, HAS_UPDATE, T, U, F1, F2, F3> seg){
+		out << "{";
+		for(auto i = 0; i < seg.n; ++ i){
+			ifQ out << seg.query(i);
+			else out << seg.query_action(i);
+			if(i != seg.n - 1) out << ", ";
+		}
+		return out << '}';
+	}
+#undef ASSERT
+#undef ifQ
+#undef ifU
+};
+
+// Supports query
+template<class T, class F>
+auto make_Q_segment_tree(F TT, T T_id){
+	using U = int;
+	auto _UU = [&](){ assert(false); };
+	auto _UT = [&](){ assert(false); };
+	return segment_tree_base<true, false, T, U, F, decltype(_UU), decltype(_UT)>(TT, T_id, _UU, U{}, _UT);
+}
+// Supports update
+template<class U, class F>
+auto make_U_segment_tree(F UU, U U_id){
+	using T = int;
+	auto _TT = [&](){ assert(false); };
+	auto _UT = [&](){ assert(false); };
+	return segment_tree_base<false, true, T, U, decltype(_TT), F, decltype(_UT)>(_TT, T{}, UU, U_id, _UT);
+}
+// Supports query and update
+template<class T, class U, class F1, class F2, class F3>
+auto make_QU_segment_tree(F1 TT, T T_id, F2 UU, U U_id, F3 UT){
+	return segment_tree_base<true, true, T, U, F1, F2, F3>(TT, T_id, UU, U_id, UT);
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>segment_tree</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

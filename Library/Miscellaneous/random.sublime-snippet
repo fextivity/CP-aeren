@@ -1,0 +1,49 @@
+<snippet>
+	<content><![CDATA[
+mt19937 rng(chrono::high_resolution_clock::now().time_since_epoch().count());
+mt19937_64 rngll(chrono::high_resolution_clock::now().time_since_epoch().count());
+using randint_t = uniform_int_distribution<int>;
+using randll_t = uniform_int_distribution<long long>;
+using randd_t = uniform_real_distribution<double>;
+// return x with probability p, y with probability 1-p
+template<class T>
+T pick(T x, T y, double p = 0.5){
+	assert(-0.0001 <= p && p <= 1.0001);
+	return randd_t(0, 1)(rng) <= p ? x : y;
+}
+array<int, 2> gen_range(int n, bool allow_empty_range = false){
+	if(allow_empty_range){
+		int l = rng() % (n + 1), r = rng() % (n + 1);
+		if(l > r) swap(l, r);
+		return {l, r};
+	}
+	else{
+		int l = rng() % n, r = rng() % n;
+		if(l > r) swap(l, r);
+		return {l, r + 1};
+	}
+}
+template<class T>
+vector<T> sample_array(int n, T low, T high, bool distinct = false){
+	assert(low < high && (!distinct || high - low >= n));
+	set<T> used;
+	vector<T> array(n);
+	for(auto i = 0; i < n; ++ i){
+		T x = randll_t(low, high - 1)(rng);
+		if(distinct){
+			if(used.count(x)){
+				-- i;
+				continue;
+			}
+			used.insert(x);
+		}
+		array[i] = x;
+	}
+	return array;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>random</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

@@ -1,0 +1,55 @@
+<snippet>
+	<content><![CDATA[
+template<class T = int>
+struct distinct_value_query_solver_offline{
+	int n, sigma;
+	vector<tuple<int, int, T>> event;
+	vector<array<int, 3>> queries;
+	// 0 <= a[i] < sigma must hold for all 0 <= i < n
+	// O(n * log(n) + sigma)
+	distinct_value_query_solver_offline(const vector<int> &a, int sigma): distinct_value_query_solver_offline(a, vector<T>(sigma, 1)){ }
+	// 0 <= a[i] < sigma must hold for all 0 <= i < n
+	// O(n * log(n) + sigma)
+	distinct_value_query_solver_offline(const vector<int> &a, const vector<T> &w): n((int)a.size()), sigma((int)w.size()), event(n){
+		for(auto &x: a) assert(0 <= x && x < sigma);
+		vector<int> last(w.size(), -1);
+		for(auto i = 0; i < n; ++ i){
+			event[i] = {last[a[i]], i, w[a[i]]};
+			last[a[i]] = i;
+		}
+	}
+	distinct_value_query_solver_offline &operator=(const distinct_value_query_solver_offline &dvq){
+		n = dvq.n;
+		sigma = dvq.sigma;
+		event = dvq.event;
+		queries = dvq.queries;
+		return *this;
+	}
+	void query(int qi, int ql, int qr){
+		assert(0 <= ql && ql <= qr && qr <= n);
+		queries.push_back({ql, qr, qi});
+	}
+	// First, prepare a data structure of length sigma, initialized with identities
+	// set(p, x): A[p] <- x, A[p] is always identity beforehand
+	// query(l, r): return sum in A[l:r)
+	// answer(qi, x): answer to query qi is sum of w[x] over all distinct values x in a[ql, qr)
+	// O(n * (log(n) + update()) + q * (log(q) + query() + answer()))
+	void solve(auto set, auto query, auto answer){
+		sort(queries.begin(), queries.end());
+		sort(event.begin(), event.end());
+		int i = 0;
+		for(auto &q: queries){
+			while(i < (int)event.size() && get<0>(event[i]) < q[0]){
+				set(get<1>(event[i]), get<2>(event[i]));
+				++ i;
+			}
+			answer(q[2], query(q[0], q[1]));
+		}
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>distinct_value_query_solver_offline</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

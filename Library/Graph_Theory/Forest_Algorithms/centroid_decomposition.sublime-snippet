@@ -1,0 +1,186 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+struct centroid_decomposition{
+	vector<int> was;
+	int attempt = -1;
+	void _init(int n){
+		assert(n >= 1);
+		this->n = n;
+		root.clear();
+		abr.clear();
+		abr.n = n;
+		abr.adj.resize(n);
+		pv.resize(n, -1);
+		pe.resize(n, -1);
+		order.clear();
+		pos.resize(n, -1);
+		end.resize(n, -1);
+		size.resize(n, -1);
+		depth.resize(n, -1);
+		was.resize(n, -2);
+		spv.resize(n, -1);
+		spe.resize(n, -1);
+		sorder.clear();
+		spos.resize(n, -1);
+		send.resize(n, -1);
+		ssize.resize(n, -1);
+		sdepth.resize(n, -1);
+	}
+	// g must be a forest
+	// O(n * log(n))
+	template<class T>
+	void build(const graph<T> &g, const vector<int> &src){
+		_init(g.n);
+		++ attempt;
+		auto centroid = [&](int s){
+			int u = s, pe = -1;
+			while(true){
+				for(auto id: g.adj[u]){
+					if(id == pe || g.ignore && g.ignore(id)) continue;
+					int v = g(u, id);
+					if(was[v] == attempt) continue;
+					if(size[v] > size[s] >> 1){
+						u = v, pe = id;
+						goto NEXT;
+					}
+				}
+				break;
+				NEXT:;
+			}
+			return u;
+		};
+		auto dfs_size = [&](auto self, int u, int p)->void{
+			size[u] = 1;
+			for(auto id: g.adj[u]){
+				if(g.ignore && g.ignore(id)) continue;
+				int v = g(u, id);
+				if(p == v || was[v] == attempt) continue;
+				self(self, v, u);
+				size[u] += size[v];
+			}
+		};
+		auto construct = [&](auto self, int u, int p)->void{
+			dfs_size(dfs_size, u, p);
+			was[u = centroid(u)] = attempt;
+			if(~p) abr.orient(p, u);
+			else root.push_back(u);
+			for(auto id: g.adj[u]){
+				if(g.ignore && g.ignore(id)) continue;
+				int v = g(u, id);
+				if(was[v] != attempt) self(self, v, u);
+			}
+		};
+		for(auto r: src){
+			if(was[r] == attempt) continue;
+			construct(construct, r, -1);
+		}
+		auto dfs = [&](auto self, int u)->void{
+			pos[u] = (int)order.size();
+			order.push_back(u);
+			for(auto id: abr.adj[u]){
+				int v = abr.edge[id].to;
+				depth[v] = depth[u] + 1;
+				pv[v] = u;
+				pe[v] = id;
+				self(self, v);
+			}
+			end[u] = (int)order.size();
+		};
+		for(auto r: root){
+			depth[r] = 0;
+			pv[r] = pe[r] = -1;
+			dfs(dfs, r);
+		}
+	}
+	template<class T>
+	void build_all(const graph<T> &g){
+		vector<int> src(n);
+		iota(src.begin(), src.end(), 0);
+		build(g, src);
+	}
+	template<class T>
+	void init_step(const graph<T> &g){
+		step.assign(g.n, {});
+		auto set_step = [&](auto self, int u, int pe, int d)->void{
+			for(auto id: g.adj[u]){
+				if(id == pe || g.ignore && g.ignore(id)) continue;
+				int v = g(u, id);
+				if(depth[v] <= d) continue;
+				step[v].push_back(step[u].back() + 1);
+				self(self, v, id, d);
+			}
+		};
+		for(auto t = (int)order.size() - 1; t >= 0; -- t){
+			int u = order[t];
+			step[u].push_back(0);
+			set_step(set_step, u, -1, depth[u]);
+		}
+	}
+	// Check if u is visited during the last build-like call.
+	bool visited(int u) const{
+		assert(0 <= u && u < n);
+		return was[u] == attempt;
+	}
+	// Check if u is an ancestor of v in the decomposition
+	bool ancestor_of(int u, int v) const{
+		assert(visited(u) && visited(v));
+		return pos[u] <= pos[v] && end[v] <= end[u];
+	}
+	centroid_decomposition(){ }
+	template<class T>
+	centroid_decomposition(const graph<T> &g){
+		build_all(g);
+	}
+	template<class T>
+	centroid_decomposition(const graph<T> &g, const vector<int> &src){
+		build(g, src);
+	}
+	int n;
+	vector<int> root; // the roots of the arborescence
+	graph<int> abr; // stores the arborescence
+	vector<int> pv; // parent vertex in the decomposition
+	vector<int> pe; // parent edge in the decomposition
+	vector<int> order; // dfs order of the decomposition tree
+	vector<int> pos; // starting position in the dfs order
+	vector<int> end; // ending position in the dfs order
+	vector<int> size; // size of the subtree in the decomposition
+	vector<int> depth; // depth in the decomposition
+	vector<vector<int>> step; // step[u][i]: # of edges from u to its i-th decomposition parent, must call init_step() to initialize
+	template<class T>
+	void focus_subdecomposition(const graph<T> &g, int r){
+		assert(0 <= r && r < g.n);
+		spv[r] = spe[r] = -1;
+		sorder.clear();
+		sdepth[r] = 0;
+		auto dfs = [&](auto self, int u)->void{
+			spos[u] = (int)sorder.size();
+			sorder.push_back(u);
+			for(auto id: g.adj[u]){
+				if(id == spe[u] || g.ignore && g.ignore(id)) continue;
+				int v = g(u, id);
+				if(!ancestor_of(r, v)) continue;
+				spv[v] = u;
+				spe[v] = id;
+				sdepth[v] = sdepth[u] + 1;
+				self(self, v);
+			}
+			send[u] = (int)sorder.size();
+			ssize[u] = send[u] - spos[u];
+		};
+		dfs(dfs, r);
+	}
+	vector<int> spv;
+	vector<int> spe;
+	vector<int> sorder;
+	vector<int> spos;
+	vector<int> send;
+	vector<int> ssize;
+	vector<int> sdepth;
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>centroid_decomposition</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

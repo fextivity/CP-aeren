@@ -1,0 +1,34 @@
+<snippet>
+	<content><![CDATA[
+// https://i11www.iti.kit.edu/extra/publications/sw-fclt-05_t.pdf
+// O(n + m * sqrt(m)) process() calls for graphs without loop or multiedges
+void find_3_cycles(int n, const vector<array<int, 2>> &edge, auto process){
+	int m = (int)edge.size();
+	vector<int> deg(n), order, pos(n);
+	vector<vector<int>> appear(m + 1), adj(n), found(n);
+	for(auto [u, v]: edge) ++ deg[u], ++ deg[v];
+	for(auto u = 0; u < n; ++ u) appear[deg[u]].push_back(u);
+	for(auto d = m; d >= 0; -- d) order.insert(order.end(), appear[d].begin(), appear[d].end());
+	for(auto i = 0; i < n; ++ i) pos[order[i]] = i;
+	for(auto i = 0; i < m; ++ i){
+		int u = pos[edge[i][0]], v = pos[edge[i][1]];
+		adj[u].push_back(v), adj[v].push_back(u);
+	}
+	for(auto u = 0; u < n; ++ u) for(auto v: adj[u]) if(u < v){
+		for(auto i = 0, j = 0; i < (int)found[u].size() && j < (int)found[v].size(); ){
+			if(found[u][i] == found[v][j]){
+				process(order[u], order[v], order[found[u][i]]);
+				++ i, ++ j;
+			}
+			else if(found[u][i] < found[v][j]) ++ i;
+			else ++ j;
+		}
+		found[v].push_back(u);
+	}
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>find_3_cycles</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

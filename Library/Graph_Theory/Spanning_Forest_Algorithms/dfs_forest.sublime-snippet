@@ -1,0 +1,258 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+template<class T, int type, int level>
+struct dfs_forest{
+	static_assert(0 <= type && type <= 2);
+	static_assert(0 <= level && level <= 2);
+#ifdef LOCAL
+	#define ASSERT(x) assert(x)
+#else
+	#define ASSERT(x) 42
+#endif
+	int n;
+	vector<int> pv;
+	vector<int> pe;
+	vector<int> order;
+	vector<int> pos;
+	vector<int> end;
+	vector<int> size;
+	vector<int> depth;
+	vector<int> root_of;
+	vector<int> root;
+	vector<T> dist;
+	vector<int> min_depth;
+	vector<int> min_depth_origin;
+	vector<int> min_depth_spanning_edge;
+	// extra_edge[u]: adjacent edges of u which is not part of the spanning forest found during the last dfs-like run.
+	vector<vector<int>> extra_edge;
+	vector<int> was;
+	void _init(int n){
+		this->n = n;
+		pv.resize(n, -1);
+		pe.resize(n, -1);
+		if constexpr(level >= 2) for(auto u: order){
+			extra_edge[u].clear();
+			extra_edge[u].shrink_to_fit();
+		}
+		order.clear();
+		pos.resize(n, -1);
+		end.resize(n, -1);
+		size.resize(n, 0);
+		depth.resize(n, -1);
+		if constexpr(level >= 1){
+			root_of.resize(n, -1);
+			root.clear();
+			dist.resize(n);
+		}
+		if constexpr(level >= 2){
+			min_depth.resize(n, -1);
+			min_depth_origin.resize(n, -1);
+			min_depth_spanning_edge.resize(n, -1);
+			extra_edge.resize(n, {});
+		}
+		was.resize(n, -2);
+	}
+	int attempt = -1;
+	// O(# of nodes reachable from u)
+	template<class U, class F>
+	void _build(const graph<U> &g, int u, F UT, T base_dist){
+		depth[u] = 0;
+		pv[u] = pe[u] = -1;
+		if constexpr(level >= 1){
+			dist[u] = base_dist;
+			root_of[u] = u;
+			root.push_back(u);
+		}
+		auto recurse = [&](auto self, int u)->void{
+			was[u] = attempt;
+			pos[u] = (int)order.size();
+			order.push_back(u);
+			size[u] = 1;
+			if constexpr(level >= 2){
+				min_depth[u] = depth[u];
+				min_depth_origin[u] = u;
+				min_depth_spanning_edge[u] = -1;
+				extra_edge[u].clear();
+			}
+			for(auto id: g.adj[u]){
+				if(id == pe[u] || g.ignore && g.ignore(id)) continue;
+				int v = g(u, id);
+				if(was[v] == attempt){
+					if constexpr(level >= 2){
+						if(min_depth[u] > depth[v]){
+							min_depth[u] = depth[v];
+							min_depth_spanning_edge[u] = id;
+						}
+						if(pe[v] != id) extra_edge[u].push_back(id);
+					}
+					continue;
+				}
+				depth[v] = depth[u] + 1;
+				pv[v] = u;
+				pe[v] = id;
+				if constexpr(level >= 1){
+					dist[v] = UT(g.edge[id].cost, dist[u]);
+					root_of[v] = root_of[u];
+				}
+				self(self, v);
+				if constexpr(type == 2) order.push_back(u);
+				size[u] += size[v];
+				if constexpr(level >= 2) if(min_depth[u] > min_depth[v]){
+					min_depth[u] = min_depth[v];
+					min_depth_origin[u] = min_depth_origin[v];
+					min_depth_spanning_edge[u] = min_depth_spanning_edge[v];
+				}
+			}
+			end[u] = (int)order.size();
+			if constexpr(type == 1) order.push_back(u);
+		};
+		recurse(recurse, u);
+	}
+	// O(# of nodes reachable from src)
+	template<class U, class F = plus<>>
+	void build(const graph<U> &g, const vector<int> &src, F UT = plus{}, T base_dist = T{}){
+		_init(g.n);
+		++ attempt;
+		for(auto u: src){
+			ASSERT(0 <= u && u < n);
+			if(was[u] != attempt) _build(g, u, UT, base_dist);
+		}
+	}
+	// O(n + m)
+	template<class U, class F = plus<>>
+	void build_all(const graph<U> &g, F UT = plus{}, T base_dist = T{}){
+		_init(g.n);
+		++ attempt;
+		for(auto u = 0; u < n; ++ u) if(was[u] != attempt) _build(g, u, UT, base_dist);
+	}
+	// Check if u is visited during the last dfs-like call.
+	bool visited(int u) const{
+		ASSERT(0 <= u && u < n);
+		return was[u] == attempt;
+	}
+	// Check if u is an ancestor of v in some spanning tree.
+	bool ancestor_of(int u, int v) const{
+		ASSERT(visited(u) && visited(v));
+		return pos[u] <= pos[v] && end[v] <= end[u];
+	}
+	// Returns all vertices in the subtree of u in dfs order
+	auto subtr(int u){
+		ASSERT(visited(u));
+		return order | views::take(end[u]) | views::drop(pos[u]);
+	}
+	vector<int> get_vertex_path(int u, int v) const{
+		ASSERT(visited(u) && visited(v));
+		vector<int> left, right;
+		while(u != v){
+			ASSERT(~u && ~v);
+			if(depth[u] >= depth[v]) left.push_back(u), u = pv[u];
+			else right.push_back(v), v = pv[v];
+		}
+		left.push_back(u), left.insert(left.end(), right.rbegin(), right.rend());
+		return left;
+	}
+	vector<int> get_undirected_edge_path(int u, int v) const{
+		ASSERT(visited(u) && visited(v));
+		vector<int> left, right;
+		while(u != v){
+			ASSERT(~u && ~v);
+			if(depth[u] >= depth[v]) left.push_back(pe[u]), u = pv[u];
+			else right.push_back(pe[v]), v = pv[v];
+		}
+		left.insert(left.end(), right.rbegin(), right.rend());
+		return left;
+	}
+	// returns {LCA->u, LCA->v}
+	array<vector<int>, 2> get_directed_edge_path(int u, int v) const{
+		ASSERT(visited(u) && visited(v));
+		vector<int> left, right;
+		while(u != v){
+			ASSERT(~u && ~v);
+			if(depth[u] >= depth[v]) left.push_back(pe[u]), u = pv[u];
+			else right.push_back(pe[v]), v = pv[v];
+		}
+		reverse(left.begin(), left.end()), reverse(right.begin(), right.end());
+		return {left, right};
+	}
+	// if exc = -1, returns the subtree size of u on current root
+	// otherwise, returns the size of tree containing u assuming the edge u-exc has been cut
+	int get_size(int u, int exc = -1) const{
+		static_assert(level >= 1);
+		ASSERT(visited(u));
+		if(exc == -1) return size[u];
+		ASSERT(visited(exc));
+		ASSERT(pv[u] == exc || pv[exc] == u);
+		return pv[u] == exc ? size[u] : size[root_of[u]] - size[exc];
+	}
+	vector<pair<array<int, 3>, array<int, 2>>> dp;
+	vector<int> get_diameter(int root = 0){
+		ASSERT(visited(root));
+		while(~pv[root]) root = pv[root];
+		dp.resize(n);
+		for(auto i = end[root] - 1; i >= pos[root]; -- i){
+			int u = order[i];
+			dp[u] = {{0, u, u}, {0, u}};
+			for(auto j = pos[u] + 1; j < end[u]; ){
+				int v = order[j];
+				dp[u] = {
+					max({
+						dp[u].first,
+						dp[v].first,
+						array{dp[u].second[0] + 1 + dp[v].second[0], dp[u].second[1], dp[v].second[1]}
+					}),
+					max(
+						dp[u].second,
+						array{1 + dp[v].second[0], dp[v].second[1]}
+					)
+				};
+				j += size[v];
+			}
+		}
+		return get_vertex_path(dp[root].first[1], dp[root].first[2]);
+	}
+	// Check if any cycle is found during the last dfs-like call.
+	// If must_contain_root = true, the sought cycle is forced to contain one of the root of the trees.
+	template<class U>
+	optional<pair<int, vector<int>>> find_any_cycle(const graph<U> &g, bool must_contain_root = false) const{
+		static_assert(level >= 2);
+		for(auto u: order) for(auto id: extra_edge[u]){
+			int v = g(u, id);
+			if(!ancestor_of(v, u) || must_contain_root && root_of[v] != v) continue;
+			vector<int> cycle_edge;
+			while(u != v) cycle_edge.push_back(pe[u]), u = pv[u];
+			reverse(cycle_edge.begin(), cycle_edge.end());
+			cycle_edge.push_back(id);
+			return pair{v, cycle_edge};
+		}
+		return {};
+	}
+#undef ASSERT
+};
+
+/*
+type 0: adds to order at the beginning
+type 1: adds to order at the beginning and the end
+type 2: adds to order at the beginning and after every child
+*/
+// pv, pe, order, pos, end, size, depth
+template<class T, int type = 0>
+auto make_basic_dfs_forest(){
+	return dfs_forest<T, type, 0>();
+}
+// (basic_set), root_of, root, dist
+template<class T, int type = 0>
+auto make_augmented_dfs_forest(){
+	return dfs_forest<T, type, 1>();
+}
+// (augmented_set), min_depth, min_depth_origin, min_depth_spanning_edge, extra_edge
+template<class T, int type = 0>
+auto make_full_dfs_forest(){
+	return dfs_forest<T, type, 2>();
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>dfs_forest</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>
