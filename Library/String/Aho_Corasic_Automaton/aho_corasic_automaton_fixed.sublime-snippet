@@ -6,6 +6,7 @@ struct aho_corasic_automaton_fixed{
 	vector<int> link{-1};
 	vector<int> exit_link{-1};
 	vector<int> is_terminal{false};
+	vector<vector<int>> end{{}}; // end[u]: pattern indices ending at node u
 	vector<pair<int, int>> pv{{-1, {}}};
 	vector<array<int, sigma>> next{{}};
 	int new_state(){
@@ -13,6 +14,7 @@ struct aho_corasic_automaton_fixed{
 		link.push_back(-1);
 		exit_link.push_back(-1);
 		is_terminal.push_back(false);
+		end.push_back({});
 		pv.push_back({-1, {}});
 		next.push_back({});
 		return (int)len.size() - 1;
@@ -29,9 +31,9 @@ struct aho_corasic_automaton_fixed{
 	// O(sigma * (sum of length)) where sigma is the size of alphabets
 	// All alphabets must be within [0, sigma)
 	aho_corasic_automaton_fixed(const vector<vector<int>> &patterns){
-		for(auto s: patterns){
+		for(auto i = 0; i < (int)patterns.size(); ++ i){
 			int u = 0;
-			for(auto c: s){
+			for(auto c: patterns[i]){
 				assert(0 <= c && c < sigma);
 				if(!next[u][c]){
 					next[u][c] = new_state();
@@ -41,6 +43,7 @@ struct aho_corasic_automaton_fixed{
 				u = next[u][c];
 			}
 			is_terminal[u] = true;
+			end[u].push_back(i);
 		}
 		deque<int> dq{0};
 		while(!dq.empty()){
