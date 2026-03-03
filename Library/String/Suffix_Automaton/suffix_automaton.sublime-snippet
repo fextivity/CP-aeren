@@ -13,7 +13,7 @@ struct suffix_automaton{
 	vector<int> is_clone{false};
 	vector<Adjacency_Type> next{{}};
 	suffix_automaton(){}
-	suffix_automaton(const vector<T> &s){ extend(s); }
+	suffix_automaton(const vector<int> &s){ extend(s); }
 	suffix_automaton(const string &s){ extend(s); }
 	// End States
 	int new_state(int l, int sl, int fp, bool c, const Adjacency_Type &adj){
